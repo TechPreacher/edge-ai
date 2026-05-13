@@ -74,12 +74,12 @@ See Also:
 """
 
 import argparse
+import os
 import json
 import logging
-import os
 import re
 import sys
-from typing import Any, Literal
+from typing import Dict, List, Any, Literal, Union, Tuple, Optional
 
 import hcl2
 import requests
@@ -192,9 +192,9 @@ def get_latest_manifest_urls(
     require_asset_files: bool = False,
     strict_latest: bool = False,
     timeout: int = 10,
-    release_tag: str | None = None,
+    release_tag: Optional[str] = None,
     channel: Literal["stable", "preview"] = "stable",
-) -> tuple[str, str, dict[str, str]]:
+) -> Tuple[str, str, Dict[str, str]]:
     """
     Resolve URLs for the enablement and instance manifests from the latest GitHub release.
 
@@ -269,7 +269,7 @@ def get_latest_manifest_urls(
 
     tag_name = data.get("tag_name") or ""
     target_commitish = data.get("target_commitish") or ""
-    assets: list[dict[str, Any]] = data.get("assets", []) or []
+    assets: List[Dict[str, Any]] = data.get("assets", []) or []
 
     logger.debug(
         f"Latest release tag: {tag_name}, target_commitish: {target_commitish}, assets: {len(assets)}"
@@ -323,7 +323,7 @@ def download_manifests(
     enablement_url: str,
     instance_url: str,
     timeout: int = 15,
-) -> dict[str, dict[str, Any]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Download both AIO manifests (enablement and instance) from GitHub.
 
@@ -400,7 +400,7 @@ def download_manifests(
     return manifest_data
 
 
-def extract_tf_variables(tf_file: str) -> list[dict[str, str]]:
+def extract_tf_variables(tf_file: str) -> List[Dict[str, str]]:
     """
     Extract component information from the Terraform variables file using HCL2 parser.
 
@@ -429,7 +429,7 @@ def extract_tf_variables(tf_file: str) -> list[dict[str, str]]:
     logger.debug(f"Reading Terraform variables file: {tf_file}")
 
     try:
-        with open(tf_file) as f:
+        with open(tf_file, "r") as f:
             parsed = hcl2.load(f)
     except Exception as e:
         logger.error(f"Failed to parse Terraform file: {e}")
@@ -468,7 +468,7 @@ def extract_tf_variables(tf_file: str) -> list[dict[str, str]]:
     return variable_blocks
 
 
-def extract_tf_instance_variables(tf_instance_file: str) -> list[dict[str, str]]:
+def extract_tf_instance_variables(tf_instance_file: str) -> List[Dict[str, str]]:
     """
     Extract AIO instance component information from the Terraform instance variables file.
 
@@ -492,7 +492,7 @@ def extract_tf_instance_variables(tf_instance_file: str) -> list[dict[str, str]]
         f"Reading Terraform instance variables file: {tf_instance_file}")
 
     try:
-        with open(tf_instance_file) as f:
+        with open(tf_instance_file, "r") as f:
             parsed = hcl2.load(f)
     except Exception as e:
         logger.error(f"Failed to parse Terraform instance file: {e}")
@@ -531,7 +531,7 @@ def extract_tf_instance_variables(tf_instance_file: str) -> list[dict[str, str]]
     return variable_blocks
 
 
-def extract_bicep_variables(bicep_file: str) -> list[dict[str, str]]:
+def extract_bicep_variables(bicep_file: str) -> List[Dict[str, str]]:
     """
     Extract component information from the Bicep file using regex pattern matching.
 
@@ -561,9 +561,9 @@ def extract_bicep_variables(bicep_file: str) -> list[dict[str, str]]:
     logger.debug(f"Reading Bicep variables file: {bicep_file}")
 
     try:
-        with open(bicep_file) as f:
+        with open(bicep_file, "r") as f:
             content = f.read()
-    except OSError as e:
+    except IOError as e:
         logger.error(f"Failed to read Bicep file: {e}")
         sys.exit(1)
 
@@ -618,7 +618,7 @@ def extract_bicep_variables(bicep_file: str) -> list[dict[str, str]]:
     return variable_blocks
 
 
-def extract_variables(iac_type: IaCType, file_path: str) -> list[dict[str, str]]:
+def extract_variables(iac_type: IaCType, file_path: str) -> List[Dict[str, str]]:
     """
     Extract variables from the appropriate files based on IaC type.
 
@@ -649,8 +649,8 @@ def extract_variables(iac_type: IaCType, file_path: str) -> list[dict[str, str]]
 
 
 def extract_remote_versions(
-        manifests: dict[str, dict[str, Any]],
-) -> dict[str, dict[str, str]]:
+        manifests: Dict[str, Dict[str, Any]],
+) -> Dict[str, Dict[str, str]]:
     """
     Extract remote versions and trains from the AIO manifests.
 
@@ -730,11 +730,11 @@ def extract_remote_versions(
 
 
 def compare_versions(
-        local_components: list[dict[str, str]],
-        remote_versions: dict[str, dict[str, str]],
+        local_components: List[Dict[str, str]],
+        remote_versions: Dict[str, Dict[str, str]],
         file_path: str,
-        manifest_urls: dict[str, str],
-) -> list[dict[str, str]]:
+        manifest_urls: Dict[str, str],
+) -> List[Dict[str, str]]:
     """
     Compare local and remote versions to find mismatches.
 
@@ -821,7 +821,7 @@ def main() -> int:
     # Get IaC type, union here will all to be used in the future
     # to check all types of IaC files, but declarative for the supported
     # file types at the top of this file.
-    iac_type: IaCType | Literal["all"] = args.iac_type
+    iac_type: Union[IaCType, Literal["all"]] = args.iac_type
     logger.debug(f"Using {iac_type.upper()} mode")
 
     # If only manifest URLs are requested, resolve and print them, then exit

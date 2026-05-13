@@ -4,10 +4,8 @@ metadata description = 'Deploys a complete end-to-end environment for Azure IoT 
 import * as core from './types.core.bicep'
 import * as types from '../../../src/100-edge/110-iot-ops/bicep/types.bicep'
 import * as assetTypes from '../../../src/100-edge/111-assets/bicep/types.bicep'
-import * as messagingTypes from '../../../src/100-edge/130-messaging/bicep/types.bicep'
 import * as aiFoundryTypes from '../../../src/000-cloud/085-ai-foundry/bicep/types.bicep'
 import * as vpnGatewayTypes from '../../../src/000-cloud/055-vpn-gateway/bicep/types.bicep'
-import * as iotOpsTypes from '../../../src/100-edge/110-iot-ops/bicep/types.bicep'
 
 targetScope = 'subscription'
 
@@ -154,8 +152,10 @@ param customLocationsOid string
   IoT Operations Parameters
 */
 
-@description('The trust issuer settings for Customer Managed Azure IoT Operations Settings.')
-param trustIssuerSettings iotOpsTypes.TrustIssuerConfig = { trustSource: 'SelfSigned' }
+// Currently disable setting shouldDeployAioDeploymentScripts, remove when DeploymentScripts supports AZ CLI 2.71+ (post May 4)
+// @description('The trust issuer settings for Customer Managed Azure IoT Operations Settings.')
+// param trustIssuerSettings iotOpsTypes.TrustIssuerConfig = { trustSource: 'SelfSigned' }
+var trustIssuerSettings = { trustSource: 'SelfSigned' }
 
 @description('Whether to enable an insecure anonymous AIO MQ Broker Listener. (Should only be used for dev or test environments)')
 param shouldCreateAnonymousBrokerListener bool = false
@@ -166,16 +166,22 @@ param shouldInitAio bool = true
 @description('Whether to deploy an Azure IoT Operations Instance and all of its required components into the connected cluster.')
 param shouldDeployAio bool = true
 
-@description('Whether to deploy DeploymentScripts for Azure IoT Operations.')
-param shouldDeployAioDeploymentScripts bool = false
+// Currently disable setting shouldDeployAioDeploymentScripts, remove when DeploymentScripts supports AZ CLI 2.71+ (post May 4)
+// @description('Whether to deploy DeploymentScripts for Azure IoT Operations.')
+// param shouldDeployAioDeploymentScripts bool = false
+var shouldDeployAioDeploymentScripts = false
 
 // No additional resource group parameters needed
 
-@description('Whether or not to enable the Open Telemetry Collector for Azure IoT Operations.')
-param shouldEnableOtelCollector bool = true
+// Currently disable setting shouldDeployAioDeploymentScripts, remove when DeploymentScripts supports AZ CLI 2.71+ (post May 4)
+// @description('Whether or not to enable the Open Telemetry Collector for Azure IoT Operations.')
+// param shouldEnableOtelCollector bool = true
+var shouldEnableOtelCollector = false
 
-@description('Whether or not to enable the OPC UA Simulator and deploy ADR Asset for Azure IoT Operations.')
-param shouldEnableOpcUaSimulator bool = false
+// Currently disable setting shouldDeployAioDeploymentScripts, remove when DeploymentScripts supports AZ CLI 2.71+ (post May 4)
+// @description('Whether or not to enable the OPC UA Simulator and deploy ADR Asset for Azure IoT Operations.')
+// param shouldEnableOpcUaSimulator bool = true
+var shouldEnableOpcUaSimulator = false
 
 /*
   Device Configuration Parameters
@@ -225,27 +231,6 @@ param registryEndpoints types.RegistryEndpointConfig[] = []
 
 @description('Whether to include the deployed ACR as a registry endpoint with System Assigned Managed Identity authentication.')
 param shouldIncludeAcrRegistryEndpoint bool = false
-
-/*
-  Dataflow Graph Parameters
-*/
-
-@description('The list of dataflow graphs to create.')
-param dataflowGraphs messagingTypes.DataflowGraph[] = []
-
-/*
-  Dataflow Parameters
-*/
-
-@description('The list of dataflows to create.')
-param dataflows messagingTypes.Dataflow[] = []
-
-/*
-  Dataflow Endpoint Parameters
-*/
-
-@description('The list of dataflow endpoints to create.')
-param dataflowEndpoints messagingTypes.DataflowEndpoint[] = []
 
 /*
   Local Variables
@@ -569,11 +554,6 @@ module edgeMessaging '../../../src/100-edge/130-messaging/bicep/main.bicep' = {
     // Optional event hub and event grid parameters passed from cloud messaging
     eventHub: cloudMessaging.outputs.eventHubConfig
     eventGrid: cloudMessaging.outputs.eventGridConfig
-
-    // Dataflow parameters
-    dataflowGraphs: dataflowGraphs
-    dataflows: dataflows
-    dataflowEndpoints: dataflowEndpoints
   }
 }
 
@@ -687,15 +667,6 @@ output messaging object = {
     ? cloudMessaging.outputs.eventHubNamespaceName
     : 'Not deployed'
 }
-
-@description('Map of dataflow graph resources by name.')
-output dataflowGraphs string[] = edgeMessaging.outputs.dataflowGraphNames
-
-@description('Map of dataflow resources by name.')
-output dataflows string[] = edgeMessaging.outputs.dataflowNames
-
-@description('Map of dataflow endpoint resources by name.')
-output dataflowEndpoints string[] = edgeMessaging.outputs.dataflowEndpointNames
 
 /*
   AI Foundry Outputs

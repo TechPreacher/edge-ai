@@ -5,9 +5,7 @@ This module handles String message processing and MQTT publishing.
 """
 
 from std_msgs.msg import String
-
 from . import base_handler
-
 BaseMessageHandler = base_handler.BaseMessageHandler
 
 

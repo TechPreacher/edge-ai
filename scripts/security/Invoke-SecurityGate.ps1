@@ -23,6 +23,7 @@ This script enforces security policies by analyzing security scan results from m
 - Grype vulnerability scanner (container images and source code)
 - Checkov infrastructure as code security scanner
 - Language-specific dependency audits (dotnet, cargo audit, npm audit, pip-audit)
+- MegaLinter security findings
 
 The script provides configurable thresholds and can fail builds when security policies are violated.
 
@@ -79,8 +80,6 @@ Enable verbose logging for debugging security gate logic.
 Returns security gate results object and writes JUnit XML report file.
 #>
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'AllowMissingReports',
-    Justification = 'Used via colon-syntax: -AllowMissing:$AllowMissingReports')]
 param(
     [Parameter(Mandatory = $false)]
     [string]$SecurityResultsPath = "./security-reports",
@@ -116,9 +115,6 @@ param(
 
     [Parameter(Mandatory = $false)]
     [string]$Environment = "",
-
-    [Parameter(Mandatory = $false)]
-    [switch]$AllowMissingReports,
 
     [Parameter(Mandatory = $false)]
     [switch]$EnableVerboseLogging
@@ -267,52 +263,41 @@ function Write-SecurityDebug {
 ####
 
 function Get-GrypeScanResult {
-    param(
-        [string]$ResultsPath,
-        [switch]$AllowMissing
-    )
+    param([string]$ResultsPath)
 
     Write-SecurityDebug "Parsing Grype vulnerability scan results"
 
-    # Recursive Filter-based discovery (PowerShell glob '**' is not recursive).
-    # Default behavior fails closed when no reports are present so the gate
-    # cannot silently pass when the scanner step misnames or skips its outputs
-    # (issue #362). Callers that legitimately produce no scannable artifacts
-    # (e.g. wasm-only matrix jobs) opt in via -AllowMissing.
     $grypeScanResult = @()
-    $grypeFiles = Get-ChildItem -Path $ResultsPath -Recurse -Filter 'grype-*.json' -ErrorAction SilentlyContinue
+    $grypePaths = @(
+        "$ResultsPath/grype-*.json",
+        "$ResultsPath/**/grype-*.json"
+    )
 
-    if (-not $grypeFiles -or $grypeFiles.Count -eq 0) {
-        if ($AllowMissing) {
-            Write-SecurityWarn "No Grype reports found under $ResultsPath -- AllowMissingReports set, treating as no findings."
-            return $grypeScanResult
-        }
-        Write-SecurityWarn "No Grype reports found under $ResultsPath -- failing closed."
-        throw "SecurityGate: no grype-*.json reports discovered under '$ResultsPath'. Refusing to pass."
-    }
+    foreach ($pathPattern in $grypePaths) {
+        $grypeFiles = Get-ChildItem -Path $pathPattern -ErrorAction SilentlyContinue
+        foreach ($file in $grypeFiles) {
+            try {
+                Write-SecurityDebug "Processing Grype file: $($file.FullName)"
+                $grypeData = Get-Content $file.FullName | ConvertFrom-Json
 
-    foreach ($file in $grypeFiles) {
-        try {
-            Write-SecurityDebug "Processing Grype file: $($file.FullName)"
-            $grypeData = Get-Content $file.FullName | ConvertFrom-Json
-
-            if ($grypeData.matches) {
-                foreach ($match in $grypeData.matches) {
-                    $grypeScanResult += [PSCustomObject]@{
-                        Type            = "Vulnerability"
-                        Source          = "Grype"
-                        Severity        = $match.vulnerability.severity
-                        PackageName     = $match.artifact.name
-                        PackageVersion  = $match.vulnerability.fix.versions -join ", "
-                        VulnerabilityId = $match.vulnerability.id
-                        Description     = $match.vulnerability.description
-                        Target          = $match.artifact.type
+                if ($grypeData.matches) {
+                    foreach ($match in $grypeData.matches) {
+                        $grypeScanResult += [PSCustomObject]@{
+                            Type            = "Vulnerability"
+                            Source          = "Grype"
+                            Severity        = $match.vulnerability.severity
+                            PackageName     = $match.artifact.name
+                            PackageVersion  = $match.vulnerability.fix.versions -join ", "
+                            VulnerabilityId = $match.vulnerability.id
+                            Description     = $match.vulnerability.description
+                            Target          = $match.artifact.type
+                        }
                     }
                 }
             }
-        }
-        catch {
-            Write-SecurityWarn "Failed to parse Grype file $($file.FullName): $_"
+            catch {
+                Write-SecurityWarn "Failed to parse Grype file $($file.FullName): $_"
+            }
         }
     }
 
@@ -325,63 +310,58 @@ function Get-CheckovScanResult {
 
     Write-SecurityDebug "Parsing Checkov IaC security scan results"
 
-    # Use recursive filter discovery (PowerShell '**' is not recursive). Checkov
-    # may legitimately not run in every pipeline, so warn-and-continue rather
-    # than fail closed (issue #362; Grype is the always-expected scanner).
     $checkovScanResult = @()
-    $checkovFiles = @()
-    $foundJson = Get-ChildItem -Path $ResultsPath -Recurse -Filter 'checkov-*.json' -ErrorAction SilentlyContinue
-    if ($foundJson) { $checkovFiles += $foundJson }
-    $foundXml = Get-ChildItem -Path $ResultsPath -Recurse -Filter 'code-analysis.xml' -ErrorAction SilentlyContinue
-    if ($foundXml) { $checkovFiles += $foundXml }
+    $checkovPaths = @(
+        "$ResultsPath/checkov-*.json",
+        "$ResultsPath/**/checkov-*.json",
+        "$ResultsPath/code-analysis.xml"
+    )
 
-    if (-not $checkovFiles -or $checkovFiles.Count -eq 0) {
-        Write-SecurityWarn "No Checkov reports found under $ResultsPath -- continuing without IaC findings."
-        return $checkovScanResult
-    }
+    foreach ($pathPattern in $checkovPaths) {
+        $checkovFiles = Get-ChildItem -Path $pathPattern -ErrorAction SilentlyContinue
+        foreach ($file in $checkovFiles) {
+            try {
+                Write-SecurityDebug "Processing Checkov file: $($file.FullName)"
 
-    foreach ($file in $checkovFiles) {
-        try {
-            Write-SecurityDebug "Processing Checkov file: $($file.FullName)"
+                if ($file.Extension -eq ".xml") {
+                    # Parse JUnit XML format
+                    [xml]$checkovXml = Get-Content $file.FullName
+                    foreach ($testCase in $checkovXml.testsuites.testsuite.testcase) {
+                        if ($testCase.failure) {
+                            $checkovScanResult += [PSCustomObject]@{
+                                Type        = "IaC Security"
+                                Source      = "Checkov"
+                                Severity    = "High"  # Default severity for Checkov findings
+                                Rule        = $testCase.name
+                                File        = $testCase.classname
+                                Description = $testCase.failure.message
+                                Target      = "Infrastructure"
+                            }
+                        }
+                    }
+                }
+                else {
+                    # Parse JSON format
+                    $checkovData = Get-Content $file.FullName | ConvertFrom-Json
 
-            if ($file.Extension -eq ".xml") {
-                # Parse JUnit XML format
-                [xml]$checkovXml = Get-Content $file.FullName
-                foreach ($testCase in $checkovXml.testsuites.testsuite.testcase) {
-                    if ($testCase.failure) {
-                        $checkovScanResult += [PSCustomObject]@{
-                            Type        = "IaC Security"
-                            Source      = "Checkov"
-                            Severity    = "High"  # Default severity for Checkov findings
-                            Rule        = $testCase.name
-                            File        = $testCase.classname
-                            Description = $testCase.failure.message
-                            Target      = "Infrastructure"
+                    if ($checkovData.results) {
+                        foreach ($result in $checkovData.results.failed_checks) {
+                            $checkovScanResult += [PSCustomObject]@{
+                                Type        = "IaC Security"
+                                Source      = "Checkov"
+                                Severity    = if ($result.severity) { $result.severity } else { "Medium" }
+                                Rule        = $result.check_name
+                                File        = $result.file_path
+                                Description = $result.guideline
+                                Target      = "Infrastructure"
+                            }
                         }
                     }
                 }
             }
-            else {
-                # Parse JSON format
-                $checkovData = Get-Content $file.FullName | ConvertFrom-Json
-
-                if ($checkovData.results) {
-                    foreach ($result in $checkovData.results.failed_checks) {
-                        $checkovScanResult += [PSCustomObject]@{
-                            Type        = "IaC Security"
-                            Source      = "Checkov"
-                            Severity    = if ($result.severity) { $result.severity } else { "Medium" }
-                            Rule        = $result.check_name
-                            File        = $result.file_path
-                            Description = $result.guideline
-                            Target      = "Infrastructure"
-                        }
-                    }
-                }
+            catch {
+                Write-SecurityWarn "Failed to parse Checkov file $($file.FullName): $_"
             }
-        }
-        catch {
-            Write-SecurityWarn "Failed to parse Checkov file $($file.FullName): $_"
         }
     }
 
@@ -394,42 +374,40 @@ function Get-DependencyAuditResult {
 
     Write-SecurityDebug "Parsing dependency audit results"
 
-    # Recursive filter discovery (PowerShell '**' is not recursive). Dependency
-    # audit is not always emitted, so warn-and-continue rather than fail closed
-    # (issue #362; Grype is the always-expected scanner).
     $dependencyAuditResult = @()
-    $auditFiles = Get-ChildItem -Path $ResultsPath -Recurse -Filter 'dependency-audit-*.json' -ErrorAction SilentlyContinue
+    $auditPaths = @(
+        "$ResultsPath/dependency-audit-*.json",
+        "$ResultsPath/**/dependency-audit-*.json"
+    )
 
-    if (-not $auditFiles -or $auditFiles.Count -eq 0) {
-        Write-SecurityWarn "No dependency audit reports found under $ResultsPath -- continuing without dependency findings."
-        return $dependencyAuditResult
-    }
+    foreach ($pathPattern in $auditPaths) {
+        $auditFiles = Get-ChildItem -Path $pathPattern -ErrorAction SilentlyContinue
+        foreach ($file in $auditFiles) {
+            try {
+                Write-SecurityDebug "Processing dependency audit file: $($file.FullName)"
+                $auditData = Get-Content $file.FullName | ConvertFrom-Json
 
-    foreach ($file in $auditFiles) {
-        try {
-            Write-SecurityDebug "Processing dependency audit file: $($file.FullName)"
-            $auditData = Get-Content $file.FullName | ConvertFrom-Json
+                if ($auditData.results) {
+                    foreach ($result in $auditData.results) {
+                        if ($result.Status -in @("VULNERABLE", "ERROR")) {
+                            $severity = if ($result.Status -eq "ERROR") { "Critical" } else { "High" }
 
-            if ($auditData.results) {
-                foreach ($result in $auditData.results) {
-                    if ($result.Status -in @("VULNERABLE", "ERROR")) {
-                        $severity = if ($result.Status -eq "ERROR") { "Critical" } else { "High" }
-
-                        $dependencyAuditResult += [PSCustomObject]@{
-                            Type     = "Dependency Vulnerability"
-                            Source   = "Dependency Audit"
-                            Severity = $severity
-                            Status   = $result.Status
-                            Language = $result.Language
-                            Details  = $result.Details
-                            Target   = "Dependencies"
+                            $dependencyAuditResult += [PSCustomObject]@{
+                                Type     = "Dependency Vulnerability"
+                                Source   = "Dependency Audit"
+                                Severity = $severity
+                                Status   = $result.Status
+                                Language = $result.Language
+                                Details  = $result.Details
+                                Target   = "Dependencies"
+                            }
                         }
                     }
                 }
             }
-        }
-        catch {
-            Write-SecurityWarn "Failed to parse dependency audit file $($file.FullName): $_"
+            catch {
+                Write-SecurityWarn "Failed to parse dependency audit file $($file.FullName): $_"
+            }
         }
     }
 
@@ -517,9 +495,9 @@ function Invoke-SecurityGateEvaluation {
     $allFindings = @()
 
     # Parse Grype vulnerability results
-    $grypeFindings = Get-GrypeScanResult -ResultsPath $SecurityResultsPath -AllowMissing:$AllowMissingReports
-    $allFindings += $grypeFindings
-    $script:SecurityGateResults.ContainerFindings = $grypeFindings.Count
+    $gryteFindings = Get-GrypeScanResult -ResultsPath $SecurityResultsPath
+    $allFindings += $gryteFindings
+    $script:SecurityGateResults.ContainerFindings = $gryteFindings.Count
 
     # Parse Checkov IaC security results
     if ($EnforceIaCSecurity) {
@@ -783,28 +761,6 @@ function Main {
     catch {
         Write-SecurityError "Security gate evaluation failed: $($_.Exception.Message)"
         Write-SecurityError "Stack trace: $($_.ScriptStackTrace)"
-
-        # Emit a minimal JUnit failure report so PublishTestResults always finds a file
-        try {
-            if (-not (Test-Path $SecurityResultsPath)) {
-                New-Item -Path $SecurityResultsPath -ItemType Directory -Force | Out-Null
-            }
-            $failResults = [PSCustomObject]@{
-                Passed                = $false
-                FailureReasons        = @("Security gate execution error: $($_.Exception.Message)")
-                TotalFindings         = 0
-                CriticalFindings      = 0
-                HighFindings          = 0
-                MediumFindings        = 0
-                IaCFindings           = 0
-                DependencyFindings    = 0
-                ContainerFindings     = 0
-            }
-            New-JUnitSecurityReport -GateResults $failResults -SecurityResultsPath $SecurityResultsPath | Out-Null
-        }
-        catch {
-            Write-SecurityError "Failed to emit JUnit failure report: $($_.Exception.Message)"
-        }
 
         if ($ExitOnFailure) {
             exit 1

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
 # deploy-cora-corax-dim.sh - Deploy CORA/CORAX dimensional robotics ontology
 #
 # Wrapper script for deploying the IEEE 1872 CORA/CORAX robotics ontology

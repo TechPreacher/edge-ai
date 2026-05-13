@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use std::sync::RwLock;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tracing::{info, warn, debug};
 use base64::{Engine as _, engine::general_purpose};
 use serde_json;
@@ -117,7 +117,7 @@ impl InferenceEngine {
 
         // Validate configuration
         self.config.validate()
-            .map_err(InferenceError::configuration)?;
+            .map_err(|e| InferenceError::configuration(e))?;
 
         // Initialize backend
         let backend_config = BackendConfig {
@@ -501,22 +501,51 @@ impl InferenceEngine {
     }
 
     /// Helper method to convert YAML ModelConfiguration to legacy ModelConfig
-    fn convert_yaml_to_model_config(yaml_config: &ModelConfiguration, base_dir: &Path) -> Result<ModelConfig, InferenceError> {
+    fn convert_yaml_to_model_config(yaml_config: &ModelConfiguration, base_dir: &PathBuf) -> Result<ModelConfig, InferenceError> {
         let model_path = base_dir.join(&yaml_config.model.path)
             .to_string_lossy()
             .to_string();
 
         // Convert preprocessing to JSON if available
         let preprocessing = yaml_config.preprocessing.as_ref()
-            .map(serde_json::to_value)
+            .map(|p| serde_json::to_value(p))
             .transpose()
             .map_err(|e| InferenceError::configuration(format!("Failed to serialize preprocessing: {}", e)))?;
 
         // Convert postprocessing to JSON if available
-        let postprocessing = yaml_config.postprocessing.as_ref()
-            .map(serde_json::to_value)
+        let mut postprocessing = yaml_config.postprocessing.as_ref()
+            .map(|p| serde_json::to_value(p))
             .transpose()
             .map_err(|e| InferenceError::configuration(format!("Failed to serialize postprocessing: {}", e)))?;
+
+        // Inject output-level fields (class_labels, postprocess_type, thresholds) into
+        // the postprocessing JSON so the backend's parse_postprocessing() can read them
+        let inject = |obj: &mut serde_json::Map<String, serde_json::Value>| {
+            if let Some(ref labels) = yaml_config.output.class_labels {
+                obj.entry("class_labels").or_insert_with(|| serde_json::json!(labels));
+            }
+            obj.entry("postprocess_type")
+                .or_insert_with(|| serde_json::json!(yaml_config.output.postprocess_type));
+            if let Some(ct) = yaml_config.output.confidence_threshold {
+                obj.entry("confidence_threshold").or_insert_with(|| serde_json::json!(ct));
+            }
+            if let Some(nt) = yaml_config.output.nms_threshold {
+                obj.entry("nms_threshold").or_insert_with(|| serde_json::json!(nt));
+            }
+        };
+
+        match postprocessing {
+            Some(ref mut val) => {
+                if let Some(obj) = val.as_object_mut() {
+                    inject(obj);
+                }
+            }
+            None => {
+                let mut obj = serde_json::Map::new();
+                inject(&mut obj);
+                postprocessing = Some(serde_json::Value::Object(obj));
+            }
+        }
 
         Ok(ModelConfig {
             model_path,

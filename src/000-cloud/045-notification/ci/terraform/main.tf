@@ -4,56 +4,32 @@
  * Minimal deployment configuration for CI testing of the notification component.
  */
 
-// Defer computation to prevent `data` objects from querying for state on `terraform plan`.
-// Needed for testing and build system.
-resource "terraform_data" "defer" {
-  input = {
-    resource_group_name     = "rg-${var.resource_prefix}-${var.environment}-${var.instance}"
-    eventhub_namespace_name = "evhns-${var.resource_prefix}-aio-${var.environment}-${var.instance}"
-  }
-}
-
-data "azurerm_resource_group" "main" {
-  name = terraform_data.defer.output.resource_group_name
-}
-
-module "ci" {
+module "notification" {
   source = "../../terraform"
 
-  environment     = var.environment
-  resource_prefix = var.resource_prefix
-  instance        = var.instance
-  location        = data.azurerm_resource_group.main.location
+  environment     = "dev"
+  resource_prefix = "ci"
+  instance        = "001"
 
-  resource_group = data.azurerm_resource_group.main
+  resource_group = {
+    name     = "rg-ci-dev-001"
+    id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ci-dev-001"
+    location = "eastus2"
+  }
 
   eventhub_namespace = {
-    id   = "${data.azurerm_resource_group.main.id}/providers/Microsoft.EventHub/namespaces/${terraform_data.defer.output.eventhub_namespace_name}"
-    name = terraform_data.defer.output.eventhub_namespace_name
+    id   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ci-dev-001/providers/Microsoft.EventHub/namespaces/evhns-ci-dev-001"
+    name = "evhns-ci-dev-001"
   }
 
-  eventhub_name = var.eventhub_name
+  eventhub_name = "evh-aio-sample"
+
   storage_account = {
-    id   = "${data.azurerm_resource_group.main.id}/providers/Microsoft.Storage/storageAccounts/st${replace(var.resource_prefix, "-", "")}${var.environment}${var.instance}"
-    name = "st${replace(var.resource_prefix, "-", "")}${var.environment}${var.instance}"
+    id   = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ci-dev-001/providers/Microsoft.Storage/storageAccounts/stcidev001"
+    name = "stcidev001"
   }
 
-  teams_recipient_id = var.teams_recipient_id
-
-  event_schema = {
-    type = "object"
-    properties = {
-      event_type = { type = "string" }
-      timestamp  = { type = "number" }
-      device_id  = { type = "string" }
-    }
-  }
-
-  partition_key_field = "device_id"
-
-  notification_message_template = "<p><strong>Event Alert</strong></p><p>Device: @{body('Parse_Event')?['device_id']}</p><p><a href=\"$${close_session_url}\">Close</a></p>"
-
-  closure_message_template = "<p><strong>Session Closed</strong></p><p>Device: @{triggerOutputs()['queries']['device']}</p>"
+  teams_recipient_id = "19:mock-thread-id@thread.v2"
 
   should_assign_roles = false
 }

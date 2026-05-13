@@ -1,5 +1,0 @@
-# ROS2 Simulator Specific Dependencies
-# Base dependencies are included in the base image
-
-# No additional dependencies required for simulator
-# All dependencies are provided by the base image

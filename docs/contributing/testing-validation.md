@@ -168,19 +168,22 @@ Checkov validates:
 - **Encryption** configuration for data at rest and in transit
 - **Compliance** with industry standards (CIS, PCI DSS, GDPR)
 
-### Code Quality Linting
+### Code Quality with MegaLinter
 
-Run linting tools locally:
+Run comprehensive linting across all file types:
 
 ```bash
-# Run Terraform linting and formatting
-npm run tflint-fix-all
+# Run all linters in Dev Container mode
+npm run lint-devcontainer
 
-# Run markdown linting
-npm run mdlint-fix
+# Fix automatically fixable issues
+npm run lint-fix-devcontainer
 
-# Run Terraform validation
-npm run tf-validate
+# Run specific linter category
+npx mega-linter-runner --flavor terraform
+
+# Run with specific configuration
+npx mega-linter-runner --env MEGALINTER_CONFIG=.mega-linter.yml
 ```
 
 ### Spell Checking
@@ -319,7 +322,7 @@ Some blueprints include comprehensive test suites using Go and the Terratest fra
 
 ### Blueprint Test Architecture
 
-**Shared Test Utilities:** [src/900-tools-utilities/904-test-utilities/](https://github.com/microsoft/edge-ai/tree/main/src/900-tools-utilities/904-test-utilities/)
+**Shared Test Utilities:** [src/900-tools-utilities/904-test-utilities/](../../src/900-tools-utilities/904-test-utilities/)
 
 Provides reusable testing functions for all blueprints including:
 
@@ -327,7 +330,7 @@ Provides reusable testing functions for all blueprints including:
 - Deployment and cleanup utilities
 - Output normalization across frameworks
 
-**Reference Implementation:** [blueprints/full-single-node-cluster/tests/](https://github.com/microsoft/edge-ai/tree/main/blueprints/full-single-node-cluster/tests/)
+**Reference Implementation:** [blueprints/full-single-node-cluster/tests/](../../blueprints/full-single-node-cluster/tests/)
 
 Complete test suite demonstrating:
 
@@ -448,7 +451,7 @@ When creating a new blueprint, add comprehensive test coverage:
 
 **See:** [Blueprint Developer Guide](../getting-started/blueprint-developer.md#testing-and-validation) for detailed instructions
 
-**See:** [test-utilities README](https://github.com/microsoft/edge-ai/blob/main/src/900-tools-utilities/904-test-utilities/README.md) for complete API reference
+**See:** [test-utilities README](../../src/900-tools-utilities/904-test-utilities/README.md) for complete API reference
 
 ### Blueprint Validation Script
 
@@ -522,7 +525,7 @@ The CI/CD pipeline includes comprehensive testing:
 
 The pipeline enforces these quality gates:
 
-- **Linting**: All files must pass lint validation
+- **Linting**: All files must pass MegaLinter validation
 - **Security**: No new high-severity security issues
 - **Testing**: All component tests must pass
 - **Documentation**: All documentation must be current and properly formatted
@@ -672,7 +675,7 @@ go test -v -cpuprofile=cpu.prof -memprofile=mem.prof ./tests/...
 - **Share testing knowledge** across the team
 - **Contribute improvements** to testing frameworks and tools
 
-For more information about development workflows, see the [Development Environment](./development-environment.md) and [Contributing Guidelines](../contributions.md).
+For more information about development workflows, see the [Development Environment](./development-environment.md) and [Contributing Guidelines](./contributing.md).
 
 <!-- markdownlint-disable MD036 -->
 *🤖 Crafted with precision by ✨Copilot following brilliant human instruction,

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
 # Deploy Data Sources - Creates Lakehouse and Eventhouse from ontology definition
 #
 # Creates and populates Fabric data sources (Lakehouse and Eventhouse) based on

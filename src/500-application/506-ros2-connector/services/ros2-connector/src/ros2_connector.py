@@ -1,17 +1,16 @@
 # Standard library imports
-import os
 import time
+import os
 from threading import Thread
-
-# Local imports - use the message type registry
-import message_types
 
 # Third-party imports
 import rclpy
-from flask import Flask, jsonify
-from paho.mqtt import client as mqtt_client
 from rclpy.node import Node
+from paho.mqtt import client as mqtt_client
+from flask import Flask, jsonify
 
+# Local imports - use the message type registry
+import message_types
 get_supported_types = message_types.get_supported_types
 create_handler = message_types.create_handler
 

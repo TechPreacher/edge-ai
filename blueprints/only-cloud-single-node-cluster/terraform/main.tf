@@ -11,7 +11,9 @@ locals {
 module "cloud_resource_group" {
   source = "../../../src/000-cloud/000-resource-group/terraform"
 
-  tags            = merge(var.tags, { blueprint = "only-cloud-single-node-cluster" })
+  tags = {
+    blueprint = "full-single-cluster"
+  }
   environment     = var.environment
   location        = var.location
   resource_prefix = var.resource_prefix
@@ -36,14 +38,11 @@ module "cloud_security_identity" {
   should_create_key_vault_private_endpoint = var.should_enable_private_endpoints
   key_vault_private_endpoint_subnet_id     = var.should_enable_private_endpoints ? module.cloud_networking.subnet_id : null
   key_vault_virtual_network_id             = var.should_enable_private_endpoints ? module.cloud_networking.virtual_network.id : null
-  log_analytics_workspace_id               = module.cloud_observability.log_analytics_workspace.id
-  should_enable_diagnostic_settings        = true
 }
 
 module "cloud_observability" {
   source = "../../../src/000-cloud/020-observability/terraform"
 
-  tags            = merge(var.tags, { blueprint = "only-cloud-single-node-cluster" })
   environment     = var.environment
   location        = var.location
   resource_prefix = var.resource_prefix
@@ -71,16 +70,13 @@ module "cloud_data" {
 module "cloud_messaging" {
   source = "../../../src/000-cloud/040-messaging/terraform"
 
-  tags            = merge(var.tags, { blueprint = "only-cloud-single-node-cluster" })
   resource_group  = module.cloud_resource_group.resource_group
   aio_identity    = module.cloud_security_identity.aio_identity
   environment     = var.environment
   resource_prefix = var.resource_prefix
   instance        = var.instance
 
-  should_create_azure_functions     = var.should_create_azure_functions
-  log_analytics_workspace_id        = module.cloud_observability.log_analytics_workspace.id
-  should_enable_diagnostic_settings = true
+  should_create_azure_functions = var.should_create_azure_functions
 }
 
 module "cloud_networking" {
@@ -130,8 +126,6 @@ module "cloud_acr" {
   should_create_acr_private_endpoint = var.should_enable_private_endpoints
   default_outbound_access_enabled    = local.default_outbound_access_enabled
   should_enable_nat_gateway          = var.should_enable_managed_outbound_access
-  log_analytics_workspace_id         = module.cloud_observability.log_analytics_workspace.id
-  should_enable_diagnostic_settings  = true
 }
 
 module "cloud_kubernetes" {

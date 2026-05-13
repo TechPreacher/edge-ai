@@ -42,17 +42,6 @@ module "schema_registry" {
   storage_account = module.storage_account.storage_account
 }
 
-module "schemas" {
-  count = var.should_create_schema_registry && length(var.schemas) > 0 ? 1 : 0
-
-  source = "./modules/schema"
-
-  adr_schema_registry = module.schema_registry[0].schema_registry
-  schemas             = var.schemas
-
-  depends_on = [module.schema_registry]
-}
-
 module "adr_namespace" {
   count = var.should_create_adr_namespace ? 1 : 0
 

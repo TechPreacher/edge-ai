@@ -24,16 +24,17 @@ Usage inside container (example):
 
 """
 import os
-import signal
 import sys
 import time
+import signal
+from typing import Dict, Set, Optional
 
 import rclpy
-import rosbag2_py
-import yaml  # Detect storage identifier (mcap/sqlite3) from metadata
 from rclpy.node import Node
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
+import rosbag2_py
+import yaml  # Detect storage identifier (mcap/sqlite3) from metadata
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -43,7 +44,7 @@ def _env_bool(name: str, default: bool) -> bool:
     return val.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _env_set(name: str) -> set[str] | None:
+def _env_set(name: str) -> Optional[Set[str]]:
     raw = os.getenv(name)
     if not raw:
         return None
@@ -52,8 +53,8 @@ def _env_set(name: str) -> set[str] | None:
 
 class BagPlayer(Node):
     def __init__(self, bag_path: str, loop: bool = True, rate: float = 1.0,
-                 include: set[str] | None = None,
-                 exclude: set[str] | None = None):
+                 include: Optional[Set[str]] = None,
+                 exclude: Optional[Set[str]] = None):
         super().__init__('ros2_bag_player')
         self.bag_path = bag_path
         self.loop = loop
@@ -62,10 +63,10 @@ class BagPlayer(Node):
         self.exclude = exclude or set()
 
         self._reader = None
-        self._topic_types: dict[str, str] = {}
+        self._topic_types: Dict[str, str] = {}
         # Map of topic name -> Publisher instance (avoid name clash with
         # Node internal _publishers list used by rclpy)
-        self._topic_publishers: dict[str, any] = {}
+        self._topic_publishers: Dict[str, any] = {}
 
         self._open_reader()
         self.get_logger().info(
@@ -85,7 +86,7 @@ class BagPlayer(Node):
         metadata_path = os.path.join(self.bag_path, 'metadata.yaml')
         if os.path.isfile(metadata_path):
             try:
-                with open(metadata_path, encoding='utf-8') as f:
+                with open(metadata_path, 'r', encoding='utf-8') as f:
                     meta = yaml.safe_load(f) or {}
                 storage_id = meta.get(
                     'rosbag2_bagfile_information', {}

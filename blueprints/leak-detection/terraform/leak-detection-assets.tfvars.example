@@ -1,0 +1,50 @@
+// Leak detection SSE camera device and event asset definitions.
+// Copy these values into your .tfvars file or terraform.tfvars.
+should_enable_akri_media_connector = true
+should_enable_akri_onvif_connector = true
+
+namespaced_devices = [
+  {
+    name    = "pipe"
+    enabled = true
+    endpoints = {
+      outbound = { assigned = {} }
+      inbound = {
+        "pipe-stream" = {
+          endpoint_type = "Microsoft.Media"
+          version       = "1.0"
+          address       = "rtsp://onvif-camera-simulator:8554/cam1"  # ← Update with your RTSP URL
+          authentication = {
+            method = "Anonymous"
+          }
+        }
+      }
+    }
+  }
+]
+
+namespaced_assets = [
+  {
+    name         = "pipe-snapshots"
+    display_name = "Pipe Snapshots"
+    device_ref = {
+      device_name   = "pipe"
+      endpoint_name = "pipe-stream"
+    }
+    enabled = true
+    streams = [
+      {
+        name                 = "snapshots"
+        stream_configuration = "{\"taskType\":\"snapshot-to-mqtt\",\"autostart\":true,\"loop\":true,\"snapshotsPerSecond\":0.2,\"format\":\"jpeg\",\"imageWidth\":640,\"imageHeight\":480}"
+        destinations = [{
+          target = "Mqtt"
+          configuration = {
+            topic  = "azure-iot-operations/data/pipe-snapshots/snapshots"
+            qos    = "Qos1"
+            retain = "Never"
+          }
+        }]
+      }
+    ]
+  }
+]

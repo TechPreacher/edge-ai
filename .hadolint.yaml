@@ -7,4 +7,3 @@ ignored:
 trustedRegistries:
   - mcr.microsoft.com
   - docker.io
-  - gcr.io

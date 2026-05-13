@@ -9,7 +9,6 @@ sensor data, along with a health check endpoint.
 
 import random
 from datetime import datetime
-
 from flask import Flask, jsonify
 
 app = Flask(__name__)

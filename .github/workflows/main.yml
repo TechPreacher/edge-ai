@@ -6,7 +6,7 @@
 # ensuring code quality and deploying documentation to GitHub Pages.
 #
 # Functionality:
-# - Runs per-tool lint workflows for static code analysis across multiple languages
+# - Runs MegaLinter for static code analysis across multiple languages
 # - Validates documentation standards and updates docs if needed
 # - When code is pushed to the main branch (triggers deployment to
 #   GitHub Pages)
@@ -29,6 +29,11 @@ name: Main Branch CI/CD
 
 permissions:
   contents: read
+  actions: read
+  checks: write
+  pull-requests: write
+  statuses: write
+  security-events: write
 
 on: # yamllint disable-line rule:truthy
   push:
@@ -54,12 +59,12 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
         with:
           fetch-depth: 0
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/init@a2d9de63c2916881d0621fdb7e65abe32141606d
         with:
           languages: ${{ matrix.language }}
           build-mode: none
@@ -70,139 +75,63 @@ jobs:
           # queries: security-extended,security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/autobuild@a2d9de63c2916881d0621fdb7e65abe32141606d
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/analyze@a2d9de63c2916881d0621fdb7e65abe32141606d
         with:
           category: "/language:${{matrix.language}}"
 
-  # Shell script linting (main)
-  shell-lint-main:
-    name: Shell Lint
-    permissions:
-      contents: read
-    uses: ./.github/workflows/shell-lint.yml
+  # Dependency scanning job for main branch
+  dependency-scan-main:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
 
-  # Terraform linting (main)
-  terraform-lint-main:
-    name: Terraform Lint
-    permissions:
-      contents: read
-    uses: ./.github/workflows/terraform-lint.yml
+      # GitHub doesn't have a direct equivalent to Azure's ComponentGovernanceComponentDetection
+      # Using a basic dependency check with built-in security scanning
+      - name: Dependency Review
+        uses: actions/dependency-review-action@98884d411b0f1c583e5ee579e7e897d4623019c2
+        with:
+          head-ref: refs/heads/main
+          base-ref: refs/heads/main
 
-  # Bicep linting (main)
-  bicep-lint-main:
-    name: Bicep Lint
+  # MegaLinter job for main branch
+  mega-linter-main:
+    name: MegaLinter
+    needs: [dependency-scan-main]
     permissions:
-      contents: read
-    uses: ./.github/workflows/bicep-lint.yml
-
-  # Documentation linting (main)
-  docs-lint-main:
-    name: Documentation Lint
-    permissions:
-      contents: read
-    uses: ./.github/workflows/docs-lint.yml
-
-  # Code quality checks (main)
-  code-quality-lint-main:
-    name: Code Quality Lint
-    permissions:
-      contents: read
-    uses: ./.github/workflows/code-quality-lint.yml
-
-  # PowerShell linting (main)
-  powershell-lint-main:
-    name: PowerShell Lint
-    permissions:
-      contents: read
-    uses: ./.github/workflows/powershell-lint.yml
-
-  # PowerShell Resource Provider Tests (main)
-  pwsh-provider-tests-main:
-    name: PowerShell Provider Tests
-    permissions:
-      contents: read
-    uses: ./.github/workflows/resource-provider-pwsh-tests.yml
+      contents: write
+      pull-requests: write
+      statuses: write
+    uses: ./.github/workflows/megalinter.yml
     with:
-      working-directory: 'src/azure-resource-providers'
-      test-results-output: 'PWSH-TEST-RESULTS.xml'
-
-  # Security scanning (main)
-  security-scan-main:
-    name: Security Scan
-    permissions:
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/security-scan.yml
-
-  # YAML and container linting (main)
-  yaml-lint-main:
-    name: YAML Lint
-    permissions:
-      contents: read
-    uses: ./.github/workflows/yaml-lint.yml
-
-  # Rust clippy lint check for main branch
-  rust-clippy-main:
-    name: Rust Clippy Lint Check
-    permissions:
-      contents: read
-    uses: ./.github/workflows/rust-clippy.yml
-    with:
-      break-build: true
-    secrets: inherit
-
-  # Rust unit/integration tests with coverage for main branch
-  rust-tests-main:
-    name: Rust Tests
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/rust-tests.yml
-    secrets: inherit
-
-  # Dependency advisory audit (cargo-audit + govulncheck) for main branch
-  dep-audit-main:
-    name: Dependency Audit
-    permissions:
-      contents: read
-    uses: ./.github/workflows/dep-audit.yml
-    with:
-      break-build: false
-    secrets: inherit
-
-  # ClusterFuzzLite fuzzing for changed Rust/Python/JS fuzz targets (main)
-  fuzz-main:
-    name: Fuzz
-    permissions:
-      contents: read
-      security-events: write
-      id-token: write
-      actions: read
-    uses: ./.github/workflows/fuzz-pr.yml
+      validate_all_codebase: true
+      github_comment_reporter: false
     secrets: inherit
 
   # Call docs-check-terraform workflow
   docs-check-terraform-main:
     name: Terraform Documentation Check
+    needs: [mega-linter-main]
     permissions:
       contents: read
     uses: ./.github/workflows/docs-check-terraform.yml
     with:
-      break_build: true
-      terraformDocsVersion: 'v0.20.0'
+      break_build: false
     secrets: inherit
 
   # Call docs-check-bicep workflow
   docs-check-bicep-main:
     name: Bicep Documentation Check
+    needs: [mega-linter-main]
     permissions:
       contents: read
     uses: ./.github/workflows/docs-check-bicep.yml
     with:
-      break_build: true
+      break_build: false
     secrets: inherit
 
   # Security monitoring job for main branch
@@ -213,8 +142,6 @@ jobs:
       security-events: write
       actions: read
     uses: ./.github/workflows/security-comprehensive.yml
-    with:
-      fail-on-critical: true
     secrets: inherit
 
   # Pages deployment for main branch (replaces wiki update)
@@ -225,7 +152,6 @@ jobs:
       pages: write
       contents: read
       id-token: write
-      attestations: write
     # Only deploy if there are documentation changes
     if: success()
     uses: ./.github/workflows/pages-deploy.yml

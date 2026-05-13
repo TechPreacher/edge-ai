@@ -4,6 +4,7 @@ set -e
 set -u
 set -o pipefail
 
+# shellcheck disable=SC1091
 source ./utils/common.sh
 
 verify_kubectl_installed

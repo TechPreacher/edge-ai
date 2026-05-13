@@ -23,8 +23,8 @@
 # # Basic usage in PR validation:
 # pwsh-provider-tests:
 #   name: PowerShell Provider Tests
-#   needs: [shell-lint, matrix-changes]
-#   if: needs.matrix-changes.outputs.changesInRpEnablementPwsh == 'true'
+#   needs: [mega-linter, changes]
+#   if: needs.changes.outputs.changesInRpEnablementPwsh == 'true'
 #   uses: ./.github/workflows/resource-provider-pwsh-tests.yml
 #   with:
 #     working-directory: 'src/azure-resource-providers'
@@ -52,10 +52,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
         default: 'src/azure-resource-providers'
       test-results-output:
-        description: 'Directory path for PowerShell test result output files'
+        description: 'Path to output PowerShell test results'
         required: false
         type: string
-        default: 'test-results'
+        default: 'PWSH-TEST-RESULTS.xml'
 
 permissions:
   contents: read
@@ -67,79 +67,31 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@ff7abcd0c3c05ccf6adc123a8cd1fd4fb30fb493
 
       # Run Pester tests for the resource provider scripts
       - name: Run Pester Tests
-        id: pester
         shell: pwsh
-        working-directory: ${{ inputs.working-directory }}
         run: |
-          ../../scripts/Invoke-Pester.ps1 -CI -Path '.' -OutputPath '${{ inputs.test-results-output }}'
+          ./scripts/Invoke-Pester.ps1 -Path ./${{ inputs.working-directory }} -OutputFile ${{ inputs.test-results-output }}
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Pester tests failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+        working-directory: ${{ github.workspace }}
 
       # Publish the Pester test results
       - name: Publish Test Results
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        uses: actions/upload-artifact@2848b2cda0e5190984587ec6bb1f36730ca78d50
         with:
-          name: rp-pester-test-results
-          path: ${{ inputs.working-directory }}/${{ inputs.test-results-output }}/
+          name: pester-test-results
+          path: ${{ inputs.test-results-output }}
 
-      - name: Publish test summary to GitHub
-        if: ${{ !cancelled() }}
-        uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a # v7.0.1
-        with:
-          script: |
-            const fs = require('fs');
-            const resultsFile = '${{ inputs.working-directory }}/${{ inputs.test-results-output }}/test-results.xml';
-
-            if (!fs.existsSync(resultsFile)) {
-              core.warning('Test results file not found: ' + resultsFile);
-              return;
-            }
-
-            const xml = fs.readFileSync(resultsFile, 'utf8');
-
-            const attr = (tag, name) => {
-              const match = xml.match(new RegExp(`<${tag}[^>]*\\s${name}="([^"]*)"`, 's'));
-              return match ? match[1] : undefined;
-            };
-
-            const numberAttr = (tag, name) => {
-              const value = attr(tag, name);
-              return value !== undefined ? Number(value) : undefined;
-            };
-
-            const total = numberAttr('test-results', 'total') ?? 0;
-            const failures = numberAttr('test-results', 'failures') ?? 0;
-            const errors = numberAttr('test-results', 'errors') ?? 0;
-            const skipped = numberAttr('test-results', 'not-run') ?? numberAttr('test-results', 'skipped') ?? 0;
-            const computed = total - failures - errors - skipped;
-            const passed = numberAttr('test-results', 'passed') ?? (Number.isFinite(computed) ? computed : 0);
-            const timeTaken = attr('test-results', 'time') || attr('test-results', 'duration') || '';
-            const result = (failures + errors) === 0 ? '✅ Passed' : '❌ Failed';
-
-            let summary = '## PowerShell Resource Provider Test Results\n\n';
-            summary += `| Metric | Value |\n|--------|-------|\n`;
-            summary += `| Result | ${result} |\n`;
-            summary += `| Total | ${total} |\n`;
-            summary += `| Passed | ${passed} |\n`;
-            summary += `| Failed | ${failures} |\n`;
-            summary += `| Errors | ${errors} |\n`;
-            summary += `| Skipped | ${skipped} |\n`;
-            summary += `| Duration | ${timeTaken}s |\n`;
-
-            const failureMatches = [...xml.matchAll(/<test-case[^>]*result="(?:Failed|Error)"[^>]*name="([^"]*)"[^>]*>/gs)];
-            if (failureMatches.length > 0) {
-              summary += '\n### Failed Tests\n\n';
-              for (const m of failureMatches) {
-                const testName = m[1];
-                const msgMatch = m[0] + xml.substring(xml.indexOf(m[0]) + m[0].length, xml.indexOf('</test-case>', xml.indexOf(m[0])));
-                const messageMatch = msgMatch.match(/<message><!\[CDATA\[([\s\S]*?)\]\]><\/message>/);
-                const message = messageMatch ? messageMatch[1].substring(0, 200) : '';
-                summary += `- **${testName}**${message ? ': ' + message : ''}\n`;
-                core.error(`Test failed: ${testName}${message ? ' - ' + message : ''}`);
-              }
-            }
-
-            await core.summary.addRaw(summary).write();
+          # Publish test results to the GitHub interface
+          # - name: Publish to GitHub interface
+          #   if: always()
+          #   uses: EnricoMi/publish-unit-test-result-action@v2
+          #   with:
+          #     nunit_files: ${{ inputs.test-results-output }}
+          #     check_name: "PowerShell Resource Provider Test Results"

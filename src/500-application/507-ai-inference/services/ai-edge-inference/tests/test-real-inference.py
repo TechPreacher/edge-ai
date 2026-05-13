@@ -30,8 +30,8 @@ Note:
     Operations MQTT broker.
 """
 
-import base64
 import json
+import base64
 import subprocess
 import time
 from datetime import datetime

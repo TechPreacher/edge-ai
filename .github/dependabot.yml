@@ -1,22 +1,13 @@
-# Dependabot configuration
-#
-# Grouping policy (aligned with microsoft/hve-core, optimized for fewer PRs):
-#   * One grouped PR per ecosystem per week (Monday 09:00 US/Pacific).
-#     Floor = 7 PRs/week (one per ecosystem) since Dependabot cannot group
-#     across ecosystems.
-#   * Each ecosystem uses a single group named after the ecosystem itself,
-#     pattern "*", and update-types ["major", "minor", "patch"] so every
-#     non-security update lands in the weekly batch. Groups include all
-#     dependency types (production and development) by default.
-#   * Security updates are auto-created by Dependabot as separate, immediate
-#     PRs and are NOT subject to the weekly grouping window.
-#   * open-pull-requests-limit is 5 per ecosystem (concurrent non-security
-#     PRs); the weekly grouping keeps steady-state at 1 per ecosystem.
-#   * Commit prefix "chore(deps)" with scope matches existing PR history
-#     (e.g. #394, #395, #397) and the project's commit-message convention.
+---
+# Dependabot configuration for automated dependency updates
+# and OSSF Scorecard compliance
+# This configuration enables automated dependency monitoring for GitHub Actions,
+# Docker, npm, and Python
+# Security-critical dependencies are managed via SHA pinning in the
+# security scanning workflow
 version: 2
 updates:
-  # GitHub Actions
+  # GitHub Actions dependency updates
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -24,6 +15,7 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "US/Pacific"
+    open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -31,174 +23,3 @@ updates:
       - "dependencies"
       - "security"
       - "github-actions"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # npm
-  - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/docs/docusaurus"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "US/Pacific"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "security"
-      - "npm"
-    groups:
-      npm:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # Cargo
-  - package-ecosystem: "cargo"
-    directories:
-      - "/src/500-application/**"
-      - "/src/900-tools-utilities/**"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "US/Pacific"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "security"
-      - "cargo"
-    groups:
-      cargo:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # pip
-  - package-ecosystem: "pip"
-    directories:
-      - "/"
-      - "/src/500-application/**"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "US/Pacific"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "security"
-      - "pip"
-    groups:
-      pip:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # Docker
-  - package-ecosystem: "docker"
-    directories:
-      - "/src/500-application/**"
-      - "/src/900-tools-utilities/**"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "US/Pacific"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "security"
-      - "docker"
-    groups:
-      docker:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # NuGet
-  - package-ecosystem: "nuget"
-    directories:
-      - "/src/500-application/**"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "US/Pacific"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "security"
-      - "nuget"
-    groups:
-      nuget:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5
-
-  # Terraform
-  - package-ecosystem: "terraform"
-    directories:
-      - "/blueprints/**"
-      - "/deploy/**"
-      - "/src/**"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "US/Pacific"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "security"
-      - "terraform"
-    groups:
-      terraform:
-        patterns:
-          - "*"
-        update-types:
-          - "major"
-          - "minor"
-          - "patch"
-    open-pull-requests-limit: 5

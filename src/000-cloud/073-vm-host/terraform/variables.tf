@@ -11,7 +11,7 @@ variable "host_machine_count" {
 variable "vm_sku_size" {
   type        = string
   description = "Size of the VM"
-  default     = "Standard_D8s_v6"
+  default     = "Standard_D8s_v3"
 }
 
 variable "vm_username" {

@@ -58,15 +58,12 @@ $ActionSHAMap = @{
     "actions/setup-python@v4"              = "actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236" # v4.8.0
     "actions/setup-dotnet@v4"              = "actions/setup-dotnet@6bd8b7f7774af54e05809fcc5431931b3eb1ddee" # v4.0.1
     "actions/setup-dotnet@v3"              = "actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3" # v3.2.0
-    "actions/attest@v2"                    = "actions/attest@afd638254319277bb3d7f0a234478733e2e46a73" # v2.3.0
-    "actions/attest-build-provenance@v2"   = "actions/attest-build-provenance@db473fddc028af60658334401dc6fa3ffd8669fd" # v2.3.0
     "actions/cache@v4"                     = "actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9" # v4.0.2
     "actions/cache@v3"                     = "actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8" # v3.3.1
     "actions/upload-artifact@v4"           = "actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808" # v4.3.6
     "actions/upload-artifact@v3"           = "actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3" # v3.1.3
-    "actions/download-artifact@v4"         = "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093" # v4.3.0
+    "actions/download-artifact@v4"         = "actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16" # v4.1.8
     "actions/download-artifact@v3"         = "actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a" # v3.0.2
-    "anchore/sbom-action@v0"               = "anchore/sbom-action@e11c554f704a0b820cbf8c51673f6945e0731532" # v0.20.0
     "github/super-linter@v6"               = "github/super-linter@4ac6c1e9bce95c4e5e456c8c2c6b468998248097" # v6.8.0
     "github/super-linter@v5"               = "github/super-linter@45fc0d88288beee4701c62761281edfee85655d7" # v5.7.2
     "step-security/harden-runner@v2"       = "step-security/harden-runner@5c7944e73c4c2a096b17a9cb74d65b6c2bbafbde" # v2.9.1
@@ -100,13 +97,12 @@ $ActionSHAMap = @{
     "github/codeql-action/autobuild@v3"    = "github/codeql-action/autobuild@294a9d92911152fe08befb9ec03e240add280cb3" # v3.26.8
     "github/codeql-action/analyze@v3"      = "github/codeql-action/analyze@294a9d92911152fe08befb9ec03e240add280cb3" # v3.26.8
     "github/codeql-action/upload-sarif@v3" = "github/codeql-action/upload-sarif@294a9d92911152fe08befb9ec03e240add280cb3" # v3.26.8
+    "oxsecurity/megalinter@v8"             = "oxsecurity/megalinter@c217fe8f7bc9207062a084e989bd97efd56e7b9a" # v8.0.0
     "actions/deploy-pages@v4"              = "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e" # v4.0.5
     "actions/upload-pages-artifact@v3"     = "actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa" # v3.0.1
     "actions/configure-pages@v4"           = "actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b" # v4.0.0
     "azure/powershell@v1"                  = "azure/powershell@1c589a2e445c71fe2cea92c69f7b80b572760c3b" # v1.5.0
     "azure/get-keyvault-secrets@v1"        = "azure/get-keyvault-secrets@b5c723b9ac7870c022b8c35befe620b7009b336f" # v1.2
-    "google/clusterfuzzlite/actions/build_fuzzers@v1" = "google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05" # v1
-    "google/clusterfuzzlite/actions/run_fuzzers@v1"   = "google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05" # v1
 }
 
 function Write-SecurityLog {

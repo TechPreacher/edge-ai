@@ -45,6 +45,7 @@ import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import List, Set
 
 
 def check_dependencies() -> None:
@@ -64,7 +65,7 @@ def check_dependencies() -> None:
         sys.exit(1)
 
 
-def find_terraform_files(base_paths: list[Path]) -> set[Path]:
+def find_terraform_files(base_paths: List[Path]) -> Set[Path]:
     """
     Locate all directories containing Terraform files in the given paths.
 
@@ -103,9 +104,9 @@ def get_terraform_docs(folder: Path) -> str:
     Raises:
         ValueError: If terraform-docs fails to generate documentation
     """
-    proc = subprocess.run(  # noqa: S603  # trusted CLI tool
+    proc = subprocess.run(
         # fmt: off
-        [  # noqa: S607  # trusted CLI tool
+        [
             "terraform-docs",
             "json",
             "--output-template", "{{ .Content }}",
@@ -168,7 +169,7 @@ class TFVars:
         if len(existing) > 1:
             self.var_description_issues.add(name)
 
-    def _check_variables(self, folders: set[Path]) -> None:
+    def _check_variables(self, folders: Set[Path]) -> None:
         """
         Process all variables in the given folders to find inconsistencies.
 
@@ -183,7 +184,7 @@ class TFVars:
                 self.var_dirs[name].append(folder)
                 self._check_description(name, var.get("description", ""))
 
-    def build_issues(self, folders: set[Path]) -> list[dict]:
+    def build_issues(self, folders: Set[Path]) -> List[dict]:
         """
         Generate a list of all variable consistency issues found.
 

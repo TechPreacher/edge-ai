@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC1091
 # deploy-ontology.sh - Deploy Fabric Ontology from ontology definition
 #
 # Creates entity types, properties, data bindings, relationships, and contextualizations

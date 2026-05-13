@@ -53,8 +53,13 @@ pub async fn run(config: AppConfig) -> Result<()> {
         }
     }
 
-    subscriber_task.await.expect("subscriber task panicked")?;
-    heartbeat_task.await.expect("heartbeat task panicked")?;
+    if let Err(err) = subscriber_task.await.expect("subscriber task panicked") {
+        return Err(err);
+    }
+
+    if let Err(err) = heartbeat_task.await.expect("heartbeat task panicked") {
+        return Err(err);
+    }
 
     Ok(())
 }
@@ -110,7 +115,9 @@ async fn run_subscriptions(client: SessionManagedClient, config: Arc<AppConfig>)
     }
 
     for task in tasks {
-        task.await.expect("subscription task panicked")?;
+        if let Err(err) = task.await.expect("subscription task panicked") {
+            return Err(err);
+        }
     }
 
     Ok(())

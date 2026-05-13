@@ -45,7 +45,7 @@
 #     uses: ./.github/workflows/cluster-test-terraform.yml
 #     with:
 #       working-directory: 'blueprints/full-single-cluster/terraform'
-#       terraform-version: '1.12.2'
+#       terraform-version: '1.9.8'
 #       terraform-vars-file: './test.tfvars'
 #       backend-key: 'custom-state.tfstate'
 # ```
@@ -65,7 +65,7 @@ on:  # yamllint disable-line rule:truthy
       terraform-version:
         description: 'Version of Terraform to use'
         required: false
-        default: '1.12.2'
+        default: '1.9.8'
         type: string
       backend-config:
         description: 'Optional backend configuration parameters (JSON format)'
@@ -128,7 +128,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
 
       # Process working directory: extract paths and check for CI folders
       - name: Process working directories
@@ -174,13 +174,13 @@ jobs:
           fi
 
       - name: Azure Login
-        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        uses: azure/login@bbcc074a232a35d7283353c18aabf0de1d557775
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
           enable-AzPSSession: true
 
       - name: Get secrets from Key Vault
-        uses: azure/get-keyvault-secrets@b5c723b9ac7870c022b8c35befe620b7009b336f # v1.2
+        uses: azure/get-keyvault-secrets@c2b531e47fab4ca7cd8df09d44a65256651bf46e
         with:
           keyvault: ${{ inputs.keyvault-name }}
           secrets: '*'
@@ -188,7 +188,7 @@ jobs:
         if: inputs.keyvault-name != ''
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4.0.0
+        uses: hashicorp/setup-terraform@ce70bcf31a3711a1efd50b61e7216b0196b6f4f1
         with:
           terraform_version: ${{ inputs.terraform-version }}
           cli_config_credentials_token: ${{ secrets.TERRAFORM_API_TOKEN }}
@@ -337,10 +337,9 @@ jobs:
         run: exit 1
 
       - name: Setup Node.js for test processing
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v4.3.0
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: '22.x'
         if: steps.workingDirProcessor.outputs.tfTestsExist == 'true'
 
       # Run Terraform Tests
@@ -382,10 +381,27 @@ jobs:
         working-directory: ${{ steps.workingDirProcessor.outputs.terraformWorkingDir }}
         shell: bash
 
-      # Install pinned NPM dependencies (tftest-to-junitxml) reproducibly from package-lock.json
-      - name: Install pinned NPM dependencies
+      # Install the tftest-to-junitxml NPM package
+      - name: Install tftest-to-junitxml
         if: steps.test.outcome == 'success' && steps.workingDirProcessor.outputs.tfTestsExist == 'true'
-        run: npm ci --ignore-scripts
+        run: |
+          # Check for newer versions
+          CURRENT_VERSION="0.2.0"
+          echo "Current version of tftest-to-junitxml: $CURRENT_VERSION"
+
+          # Pin latest version
+          npm install -g tftest-to-junitxml@$CURRENT_VERSION
+
+          # Query npm registry for latest version
+          LATEST_VERSION=$(npm view tftest-to-junitxml version)
+          echo "Latest version: $LATEST_VERSION"
+
+          # Compare versions and log a warning if newer version exists
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "::warning::A newer version of tftest-to-junitxml exists: $LATEST_VERSION. Consider updating from current version: $CURRENT_VERSION"
+          else
+            echo "Using the latest version of tftest-to-junitxml: $CURRENT_VERSION"
+          fi
 
       # Convert the Terraform test output to JUnit XML
       - name: Convert Terraform test output to JUnit XML
@@ -402,7 +418,7 @@ jobs:
       #     check_name: "${{ steps.workingDirProcessor.outputs.folderPathSafe }} Test Results"
 
       - name: Upload Terraform Plan
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ${{ steps.workingDirProcessor.outputs.folderPathSafe }}-terraform-plan
           path: ${{ github.workspace }}/${{ github.run_id }}.${{ steps.workingDirProcessor.outputs.folderPathSafe }}.tfplan
@@ -410,7 +426,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload Terraform Test Output
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: steps.workingDirProcessor.outputs.tfTestsExist == 'true'
         with:
           name: ${{ steps.workingDirProcessor.outputs.folderPathSafe }}-test-output

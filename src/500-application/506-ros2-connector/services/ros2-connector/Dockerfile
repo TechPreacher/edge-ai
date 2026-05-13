@@ -38,15 +38,13 @@ RUN set -euo pipefail \
         ros-jazzy-rmw-cyclonedds-cpp \
         ros-jazzy-rosidl-default-generators \
         ros-jazzy-ament-cmake \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --break-system-packages --ignore-installed --no-cache-dir colcon-common-extensions==0.3.0
 
 WORKDIR /workspace
-COPY services/ros2-connector/requirements.colcon.txt /tmp/requirements.colcon.txt
 COPY resources/ros-interfaces/edge-ros-interface/ /workspace/edge-ros-interface/
 # hadolint ignore=SC1091 (ROS setup script provided by base image)
-RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir \
-        --require-hashes -r /tmp/requirements.colcon.txt \
-    && source /opt/ros/jazzy/setup.bash && colcon build --packages-select edge_ros_interface
+RUN source /opt/ros/jazzy/setup.bash && colcon build --packages-select edge_ros_interface
 
 # Stage 2: Runtime - minimal runtime + built interfaces
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04@sha256:ad92cae7c25cafb1e7bb5aa7520b81be85fac022ea92e404b94a11127631fae3 AS runtime
@@ -85,10 +83,10 @@ COPY --from=builder /workspace/install/edge_ros_interface/lib/ /opt/ros/jazzy/li
 COPY --from=builder /workspace/install/edge_ros_interface/lib/python3.12/site-packages/ /opt/ros/jazzy/lib/python3.12/site-packages/
 
 # Python deps
-COPY services/requirements.base.txt requirements.base.txt
-RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir --require-hashes -r requirements.base.txt
+COPY services/requirements.txt requirements.base.txt
+RUN pip3 install --break-system-packages --ignore-installed --no-cache-dir -r requirements.base.txt
 COPY services/ros2-connector/requirements.txt requirements.connector.txt
-RUN if [ -s requirements.connector.txt ]; then pip3 install --break-system-packages --ignore-installed --no-cache-dir --require-hashes -r requirements.connector.txt; fi
+RUN if [ -s requirements.connector.txt ]; then pip3 install --break-system-packages --ignore-installed --no-cache-dir -r requirements.connector.txt; fi
 
 # App source
 COPY services/ros2-connector/src/ ./src/

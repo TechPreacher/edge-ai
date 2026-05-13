@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Parse Git-style diffs embedded in PR reference XML files.
 
 The utility extracts the <full_diff> section from a PR reference XML document
@@ -22,6 +23,7 @@ import logging
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -32,19 +34,19 @@ class HunkRange:
     old_lines: int
     new_start: int
     new_lines: int
-    lines: list[str]
+    lines: List[str]
 
 
 @dataclass
 class DiffEntry:
     """Represents diff metadata for a single file."""
 
-    old_path: str | None
-    new_path: str | None
+    old_path: Optional[str]
+    new_path: Optional[str]
     change_type: str
     additions: int
     deletions: int
-    hunks: list[HunkRange]
+    hunks: List[HunkRange]
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -134,11 +136,11 @@ def extract_full_diff(reference_path: Path) -> str:
     return match.group(1).strip()
 
 
-def split_diff_blocks(diff_text: str) -> list[str]:
+def split_diff_blocks(diff_text: str) -> List[str]:
     """Split combined diff text into individual file diff blocks."""
 
-    blocks: list[str] = []
-    current: list[str] = []
+    blocks: List[str] = []
+    current: List[str] = []
     for line in diff_text.splitlines():
         if line.startswith("diff --git "):
             if current:
@@ -150,7 +152,7 @@ def split_diff_blocks(diff_text: str) -> list[str]:
     return blocks
 
 
-def determine_change_type(lines: list[str]) -> str:
+def determine_change_type(lines: List[str]) -> str:
     """Infer the change type from diff metadata lines."""
 
     for line in lines:
@@ -165,13 +167,13 @@ def determine_change_type(lines: list[str]) -> str:
     return "modify"
 
 
-def parse_hunks(lines: list[str]) -> list[HunkRange]:
+def parse_hunks(lines: List[str]) -> List[HunkRange]:
     """Parse hunk metadata and preserve associated diff lines."""
 
-    hunks: list[HunkRange] = []
+    hunks: List[HunkRange] = []
     pattern = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
-    current_meta: tuple[int, int, int, int] | None = None
-    current_lines: list[str] = []
+    current_meta: Optional[Tuple[int, int, int, int]] = None
+    current_lines: List[str] = []
 
     for line in lines:
         if line.startswith("@@ "):
@@ -216,7 +218,7 @@ def parse_hunks(lines: list[str]) -> list[HunkRange]:
     return hunks
 
 
-def count_line_changes(lines: list[str]) -> tuple[int, int]:
+def count_line_changes(lines: List[str]) -> tuple[int, int]:
     """Count added and removed lines for a diff block."""
 
     additions = 0
@@ -265,10 +267,10 @@ def parse_diff_block(block: str) -> DiffEntry:
     )
 
 
-def parse_diff(diff_text: str) -> list[DiffEntry]:
+def parse_diff(diff_text: str) -> List[DiffEntry]:
     """Parse the entire diff text into structured entries."""
 
-    entries: list[DiffEntry] = []
+    entries: List[DiffEntry] = []
     for block in split_diff_blocks(diff_text):
         if not block.strip():
             continue
@@ -279,13 +281,13 @@ def parse_diff(diff_text: str) -> list[DiffEntry]:
     return entries
 
 
-def filter_entries(entries: list[DiffEntry], substring: str | None) -> list[DiffEntry]:
+def filter_entries(entries: List[DiffEntry], substring: Optional[str]) -> List[DiffEntry]:
     """Filter diff entries by substring match on paths."""
 
     if not substring:
         return entries
     substring = substring.lower()
-    filtered: list[DiffEntry] = []
+    filtered: List[DiffEntry] = []
     for entry in entries:
         candidate = (entry.new_path or entry.old_path or "").lower()
         if substring in candidate:
@@ -293,7 +295,7 @@ def filter_entries(entries: list[DiffEntry], substring: str | None) -> list[Diff
     return filtered
 
 
-def render_table(entries: list[DiffEntry], include_hunks: bool, limit: int | None) -> str:
+def render_table(entries: List[DiffEntry], include_hunks: bool, limit: Optional[int]) -> str:
     """Render diff entries as a simple table."""
 
     display_entries = entries[:limit] if limit and limit > 0 else entries
@@ -315,7 +317,7 @@ def render_table(entries: list[DiffEntry], include_hunks: bool, limit: int | Non
     return "\n".join(lines)
 
 
-def parse_hunk_range(value: str) -> tuple[int, int]:
+def parse_hunk_range(value: str) -> Tuple[int, int]:
     """Parse CLI hunk range expression."""
 
     match = re.fullmatch(r"(\d+)-(\d+)", value.strip())
@@ -327,10 +329,10 @@ def parse_hunk_range(value: str) -> tuple[int, int]:
     return start, end
 
 
-def flatten_hunks(entries: list[DiffEntry]) -> list[tuple[int, DiffEntry, HunkRange]]:
+def flatten_hunks(entries: List[DiffEntry]) -> List[Tuple[int, DiffEntry, HunkRange]]:
     """Create a sequential list of hunks with global indexes."""
 
-    flattened: list[tuple[int, DiffEntry, HunkRange]] = []
+    flattened: List[Tuple[int, DiffEntry, HunkRange]] = []
     index = 1
     for entry in entries:
         for hunk in entry.hunks:
@@ -339,7 +341,7 @@ def flatten_hunks(entries: list[DiffEntry]) -> list[tuple[int, DiffEntry, HunkRa
     return flattened
 
 
-def render_hunk_page(flattened: list[tuple[int, DiffEntry, HunkRange]], start: int, end: int) -> str:
+def render_hunk_page(flattened: List[Tuple[int, DiffEntry, HunkRange]], start: int, end: int) -> str:
     """Render hunks within the inclusive range."""
 
     selection = [item for item in flattened if start <= item[0] <= end]
@@ -349,13 +351,13 @@ def render_hunk_page(flattened: list[tuple[int, DiffEntry, HunkRange]], start: i
     return render_hunk_collection(selection)
 
 
-def render_hunk_collection(items: list[tuple[int, DiffEntry, HunkRange]]) -> str:
+def render_hunk_collection(items: List[Tuple[int, DiffEntry, HunkRange]]) -> str:
     """Render a collection of hunks to text."""
 
     if not items:
         return ""
 
-    output: list[str] = []
+    output: List[str] = []
     for index, entry, hunk in items:
         path = entry.new_path or entry.old_path or "(unknown)"
         header = f"# Hunk {index}: {entry.change_type} {path}"
@@ -366,7 +368,7 @@ def render_hunk_collection(items: list[tuple[int, DiffEntry, HunkRange]]) -> str
 
 
 def write_hunk_pages(
-    flattened: list[tuple[int, DiffEntry, HunkRange]],
+    flattened: List[Tuple[int, DiffEntry, HunkRange]],
     output_dir: Path,
     max_lines: int,
 ) -> int:
@@ -378,7 +380,7 @@ def write_hunk_pages(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     page_count = 0
-    current_items: list[tuple[int, DiffEntry, HunkRange]] = []
+    current_items: List[Tuple[int, DiffEntry, HunkRange]] = []
     current_line_count = 0
 
     for item in flattened:
@@ -445,7 +447,7 @@ def main() -> int:
         ]
     )
 
-    flattened: list[tuple[int, DiffEntry, HunkRange]] | None = None
+    flattened: Optional[List[Tuple[int, DiffEntry, HunkRange]]] = None
     if requires_flattened:
         flattened = flatten_hunks(entries)
         if not flattened:
@@ -479,7 +481,7 @@ def main() -> int:
         except ValueError as exc:
             logger.error("%s", exc)
             return 1
-        assert flattened is not None  # noqa: S101  # type narrowing
+        assert flattened is not None
         logger.info("Total hunks available: %d", len(flattened))
         page = render_hunk_page(flattened, start, end)
         print(page)

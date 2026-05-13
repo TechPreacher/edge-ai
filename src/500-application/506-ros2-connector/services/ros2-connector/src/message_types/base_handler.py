@@ -27,8 +27,7 @@ and counters reset with process lifetime.
 import json
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from typing import Any
+from typing import Any, Dict, Callable
 
 
 class BaseMessageHandler(ABC):
@@ -166,7 +165,7 @@ class BaseMessageHandler(ABC):
         safe_topic = topic_name.replace('/', '_')
         return f"{self.mqtt_topic_prefix}/{self.handler_type}{safe_topic}"
 
-    def create_base_mqtt_data(self, topic_name: str) -> dict[str, Any]:
+    def create_base_mqtt_data(self, topic_name: str) -> Dict[str, Any]:
         """Build the common MQTT payload envelope.
 
         Parameters
@@ -193,7 +192,7 @@ class BaseMessageHandler(ABC):
     def publish_to_mqtt(
         self,
         topic_name: str,
-        data: dict[str, Any],
+        data: Dict[str, Any],
         mqtt_publisher: Callable[[str, str], None]
     ) -> None:
         """Serialize and publish a payload to MQTT.

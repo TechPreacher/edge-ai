@@ -1,66 +1,65 @@
 # Multi-stage build for ai-edge-inference with configurable backend support
 # Build with: docker build --build-arg BACKEND=onnx|candle .
-# Cross-compilation support stage (pinned to versioned SHA256 digest for supply chain security)
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.9.0@sha256:c64defb9ed5a91eacb37f96ccc3d4cd72521c4bd18d5442905b95e2226b0e707 AS xx
 
-# Build stage - using SHA-pinned Azure Linux 3.0 image
-# SHA mapping maintained in scripts/security/Update-DockerSHAPinning.ps1
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/azurelinux/base/core:3.0.20250910@sha256:919cfecd0ffe136adff3bea7030f3e6abc6633a4069a6de44b2070bb86c40c81 AS build
+# Build stage
+FROM mcr.microsoft.com/cbl-mariner/base/core:2.0 AS build
 
-# Install build dependencies including cross-compilation tools
+# Install build dependencies including Rust and cross-compilation tools
 RUN tdnf install -y \
     openssl-devel \
     gcc \
     make \
     binutils \
     glibc-devel \
-    kernel-headers \
     curl \
     ca-certificates \
     clang \
     pkgconf-pkg-config \
     protobuf-devel \
+    wget \
     tar \
     && tdnf clean all
 
 # Set shell options for better error handling with pipes
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install Rust via rustup-init with sha256 verification (OSSF Pinned-Dependencies)
-ARG RUST_TOOLCHAIN=1.90.0
-RUN set -eux; \
-    case "$(uname -m)" in \
-        x86_64)  RUSTUP_ARCH="x86_64-unknown-linux-gnu" ;; \
-        aarch64) RUSTUP_ARCH="aarch64-unknown-linux-gnu" ;; \
-        *) echo "unsupported arch: $(uname -m)" >&2; exit 1 ;; \
-    esac; \
-    RUSTUP_DIR="$(mktemp -d)"; \
-    RUSTUP_INIT="${RUSTUP_DIR}/rustup-init"; \
-    RUSTUP_HASH="$(mktemp)"; \
-    RUSTUP_URL="https://static.rust-lang.org/rustup/dist/${RUSTUP_ARCH}/rustup-init"; \
-    curl --proto '=https' --tlsv1.2 -sSf "${RUSTUP_URL}"        -o "${RUSTUP_INIT}"; \
-    curl --proto '=https' --tlsv1.2 -sSf "${RUSTUP_URL}.sha256" -o "${RUSTUP_HASH}"; \
-    echo "$(cut -d ' ' -f 1 "${RUSTUP_HASH}")  ${RUSTUP_INIT}" | sha256sum -c -; \
-    chmod +x "${RUSTUP_INIT}"; \
-    "${RUSTUP_INIT}" -y --profile minimal --default-toolchain "${RUST_TOOLCHAIN}" --component rustc,cargo,rust-std,rustfmt; \
-    rm -rf "${RUSTUP_DIR}" "${RUSTUP_HASH}"
+# Install Rust manually (needed for Rust 1.88+ for ort crate and Azure IoT Operations crates)
+RUN wget -q https://sh.rustup.rs -O /tmp/rustup.sh && \
+    bash /tmp/rustup.sh -y --profile minimal --default-toolchain 1.88.0 --component rustc,cargo,rust-std,rustfmt && \
+    rm /tmp/rustup.sh
 
 # Add Rust binaries to PATH for subsequent RUN commands
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-COPY --from=xx / /
-ARG TARGETPLATFORM
 ARG BACKEND=onnx
+
+# Create minimal installation root for Azure Linux runtime
+RUN mkdir -p /installroot/usr/local/bin /build/bin /installroot/bin \
+    /installroot/opt/onnxruntime /installroot/etc /installroot/lib64 \
+    /installroot/usr/lib64 /installroot/tmp
+
+# Copy essential libraries for runtime
+RUN cp -a /lib64/ld-linux-x86-64.so.* /installroot/lib64/ && \
+    cp -a /usr/lib64/libssl.so.* /installroot/usr/lib64/ && \
+    cp -a /usr/lib64/libcrypto.so.* /installroot/usr/lib64/ && \
+    cp -a /lib64/libc.so.* /installroot/lib64/ && \
+    cp -a /lib64/libdl.so.* /installroot/lib64/ && \
+    cp -a /lib64/libpthread.so.* /installroot/lib64/ && \
+    cp -a /lib64/libm.so.* /installroot/lib64/ && \
+    cp -a /lib64/librt.so.* /installroot/lib64/ && \
+    cp -a /usr/lib64/libz.so.* /installroot/usr/lib64/
 
 # Conditionally install ONNX Runtime dependencies (only for ONNX backend)
 WORKDIR /tmp
 RUN if [ "$BACKEND" = "onnx" ]; then \
         mkdir -p /opt/onnxruntime && \
         # Use amd64 as default, can be enhanced for multi-arch later
-        curl -sSfL -o "onnxruntime-linux-x64-1.24.4.tgz" "https://github.com/microsoft/onnxruntime/releases/download/v1.24.4/onnxruntime-linux-x64-1.24.4.tgz" && \
-        tar -xzf "onnxruntime-linux-x64-1.24.4.tgz" && \
-        cp -r onnxruntime-linux-x64-1.24.4/* /opt/onnxruntime/ && \
-        rm -rf onnxruntime-linux-x64-1.24.4.tgz onnxruntime-linux-x64-1.24.4; \
+        wget -q "https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz" && \
+        tar -xzf "onnxruntime-linux-x64-1.17.0.tgz" && \
+        cp -r onnxruntime-linux-x64-1.17.0/* /opt/onnxruntime/ && \
+        rm -rf onnxruntime-linux-x64-1.17.0.tgz onnxruntime-linux-x64-1.17.0 && \
+        mkdir -p /installroot/opt/onnxruntime && \
+        cp -r /opt/onnxruntime/* /installroot/opt/onnxruntime/; \
     fi
 
 WORKDIR /app
@@ -86,15 +85,11 @@ RUN mkdir -p .cargo && \
 # Copy the ai-edge-inference-crate dependency to the correct relative path
 COPY ./ai-edge-inference-crate ../ai-edge-inference-crate
 
-# Copy source code and configuration
+# Copy source code, lock file, and configuration
 COPY ./ai-edge-inference/src ./src
 COPY ./ai-edge-inference/Cargo.toml ./Cargo.toml
 COPY ./ai-edge-inference/Cargo.lock ./Cargo.lock
 COPY ./ai-edge-inference/.cargo ./.cargo
-
-# Point ort-sys to the pre-downloaded ONNX Runtime (avoids downloading incompatible binaries)
-ENV ORT_LIB_LOCATION="/opt/onnxruntime/lib"
-ENV ORT_PREFER_DYNAMIC_LINK="1"
 
 # Build the application with backend-specific features
 RUN if [ "$BACKEND" = "candle" ]; then \
@@ -109,19 +104,15 @@ RUN if [ "$BACKEND" = "candle" ]; then \
 RUN echo "backend=${BACKEND}" > /app/build-info.txt && \
     echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /app/build-info.txt
 
-# Runtime stage - using SHA-pinned Azure Linux 3.0 image
-# SHA mapping maintained in scripts/security/Update-DockerSHAPinning.ps1
-FROM mcr.microsoft.com/azurelinux/base/core:3.0.20250910@sha256:919cfecd0ffe136adff3bea7030f3e6abc6633a4069a6de44b2070bb86c40c81 AS runtime
+# Conditional runtime stage based on backend
+FROM mcr.microsoft.com/cbl-mariner/base/core:2.0 AS runtime
 ARG BACKEND=onnx
-
-# Upgrade all packages to latest versions to fix vulnerabilities
-RUN tdnf upgrade -y && tdnf clean all
 
 # Install runtime dependencies and create non-root user
 RUN tdnf install -y \
     ca-certificates \
-    ncurses-libs \
     shadow-utils \
+    wget \
     tar \
     && tdnf clean all && \
     groupadd -r appuser && useradd -r -g appuser appuser

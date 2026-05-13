@@ -1,11 +1,11 @@
 /**
- * # Role Assignments
+ * # Key Vault Role Assignment
  *
- * Assigns Azure RBAC roles for Arc onboarding and Key Vault access.
+ * Assigns Azure RBAC roles for Key Vault access
  */
 
 /*
- * Role Assignments - Arc Onboarding
+ * Role Assignments
  */
 
 resource "azurerm_role_assignment" "connected_machine_onboarding" {

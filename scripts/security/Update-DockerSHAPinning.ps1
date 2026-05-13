@@ -226,14 +226,11 @@ $DockerImageSHAMap = @{
     'otel/opentelemetry-collector-contrib:latest'          = 'otel/opentelemetry-collector-contrib:latest@sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2'
     'grafana/otel-lgtm:latest'                             = 'grafana/otel-lgtm:latest@sha256:b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3'
 
-    # Cross-compilation support
-    'tonistiigi/xx:master'                                 = 'tonistiigi/xx:1.9.0@sha256:c64defb9ed5a91eacb37f96ccc3d4cd72521c4bd18d5442905b95e2226b0e707'
-    'tonistiigi/xx:1.9.0'                                  = 'tonistiigi/xx:1.9.0@sha256:c64defb9ed5a91eacb37f96ccc3d4cd72521c4bd18d5442905b95e2226b0e707'
-
     # Common base images that might be used
     'ubuntu:22.04'                                         = 'ubuntu:22.04@sha256:6042500cf4b44023ea1894effe7890666b0c5c7871ed83a97c36c76ae560bb9b'
     'alpine:3.19'                                          = 'alpine:3.19@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b'
     'debian:bookworm-slim'                                 = 'debian:bookworm-slim@sha256:c618be84fc82d365ce1834a31746b0ffe0499cf50fb1a0ce7b74863b52e5682c'
+    'node:20-alpine'                                       = 'node:20-alpine@sha256:c1ee51b68c17fe1e9e9fb5c481e44b6b74c6c2f6b9f7f0b4b4b4c4c4c4c4c4c4'
     'ubuntu:24.04'                                         = 'ubuntu:24.04@sha256:353675e2a41babd526e2b837d7ec780c2a05bca0164f7ea5dbbd433d21d166fc'
 }
 

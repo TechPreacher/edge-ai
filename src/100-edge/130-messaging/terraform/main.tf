@@ -6,7 +6,7 @@
  */
 
 module "sample_eventhub_dataflow" {
-  count = var.should_create_eventhub_dataflows && var.eventhub != null ? 1 : 0
+  count = var.should_create_eventhub_dataflows ? 1 : 0
 
   source = "./modules/eventhub"
 
@@ -21,10 +21,11 @@ module "sample_eventhub_dataflow" {
   aio_uami_client_id   = var.aio_identity.client_id
   aio_instance         = var.aio_instance
   aio_dataflow_profile = var.aio_dataflow_profile
+  mqtt_source_topics   = var.eventhub_mqtt_source_topics
 }
 
 module "sample_eventgrid_dataflow" {
-  count = var.should_create_eventgrid_dataflows && var.eventgrid != null ? 1 : 0
+  count = var.should_create_eventgrid_dataflows ? 1 : 0
 
   source = "./modules/eventgrid"
 
@@ -39,6 +40,7 @@ module "sample_eventgrid_dataflow" {
   aio_uami_tenant_id   = var.aio_identity.tenant_id
   aio_uami_client_id   = var.aio_identity.client_id
   aio_dataflow_profile = var.aio_dataflow_profile
+  mqtt_source_topics   = var.eventgrid_mqtt_source_topics
 }
 
 module "sample_fabric_rti_dataflow" {
@@ -57,36 +59,4 @@ module "sample_fabric_rti_dataflow" {
   aio_identity                = var.aio_identity
   fabric_eventstream_endpoint = var.fabric_eventstream_endpoint
   fabric_workspace            = var.fabric_workspace
-}
-
-module "dataflow_graphs" {
-  count = length(var.dataflow_graphs) > 0 ? 1 : 0
-
-  source = "./modules/dataflow-graphs"
-
-  aio_dataflow_profile = var.aio_dataflow_profile
-  custom_location      = var.aio_custom_locations
-  dataflow_graphs      = var.dataflow_graphs
-}
-
-module "dataflow_endpoints" {
-  count = length(var.dataflow_endpoints) > 0 ? 1 : 0
-
-  source = "./modules/dataflow-endpoint"
-
-  aio_instance       = var.aio_instance
-  custom_location    = var.aio_custom_locations
-  dataflow_endpoints = var.dataflow_endpoints
-}
-
-module "dataflows" {
-  count = length(var.dataflows) > 0 ? 1 : 0
-
-  source = "./modules/dataflow"
-
-  aio_dataflow_profile = var.aio_dataflow_profile
-  custom_location      = var.aio_custom_locations
-  dataflows            = var.dataflows
-
-  depends_on = [module.dataflow_endpoints]
 }

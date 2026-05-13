@@ -11,22 +11,22 @@
 
 output "azure_iot_operations" {
   description = "Azure IoT Operations deployment details."
-  value = try({
-    custom_location_id = module.edge_iot_ops[0].custom_locations.id
-    instance_name      = module.edge_iot_ops[0].aio_instance.name
-    mqtt_broker        = module.edge_iot_ops[0].aio_mqtt_broker.brokerListenerHostName
-    mqtt_port_no_tls   = var.should_create_anonymous_broker_listener ? tostring(try(module.edge_iot_ops[0].aio_broker_listener_anonymous.port, "Not configured")) : "Not configured"
-    mqtt_port_tls      = module.edge_iot_ops[0].aio_mqtt_broker.brokerListenerPort
-    namespace          = module.edge_iot_ops[0].aio_namespace
-  }, null)
+  value = {
+    custom_location_id = module.edge_iot_ops.custom_locations.id
+    instance_name      = module.edge_iot_ops.aio_instance.name
+    mqtt_broker        = module.edge_iot_ops.aio_mqtt_broker.brokerListenerHostName
+    mqtt_port_no_tls   = var.should_create_anonymous_broker_listener ? tostring(try(module.edge_iot_ops.aio_broker_listener_anonymous.port, "Not configured")) : "Not configured"
+    mqtt_port_tls      = module.edge_iot_ops.aio_mqtt_broker.brokerListenerPort
+    namespace          = module.edge_iot_ops.aio_namespace
+  }
 }
 
 output "assets" {
   description = "IoT asset resources."
-  value = try({
-    assets                  = module.edge_assets[0].assets
-    asset_endpoint_profiles = module.edge_assets[0].asset_endpoint_profiles
-  }, null)
+  value = {
+    assets                  = module.edge_assets.assets
+    asset_endpoint_profiles = module.edge_assets.asset_endpoint_profiles
+  }
 }
 
 /*
@@ -134,48 +134,14 @@ output "nat_gateway_public_ips" {
  * Messaging Outputs
  */
 
-output "event_grid_topic_endpoint" {
-  description = "Event Grid topic endpoint."
-  value       = try(module.cloud_messaging.eventgrid.endpoint, "Not deployed")
-}
-
-output "event_grid_topic_name" {
-  description = "Event Grid topic name."
-  value       = try(module.cloud_messaging.eventgrid.topic_name, "Not deployed")
-}
-
-output "eventhub_name" {
-  description = "Event Hub name."
-  value       = try(module.cloud_messaging.eventhubs[0].eventhub_name, "Not deployed")
-}
-
-output "eventhub_namespace_name" {
-  description = "Event Hub namespace name."
-  value       = try(module.cloud_messaging.eventhubs[0].namespace_name, "Not deployed")
-}
-
-output "function_app" {
-  description = "Azure Function App for alert notifications."
-  value       = try(module.cloud_messaging.function_app, null)
-}
-
-/*
- * Dataflow Outputs
- */
-
-output "dataflow_graphs" {
-  description = "Map of dataflow graph resources by name."
-  value       = try(module.edge_messaging[0].dataflow_graphs, {})
-}
-
-output "dataflows" {
-  description = "Map of dataflow resources by name."
-  value       = try(module.edge_messaging[0].dataflows, {})
-}
-
-output "dataflow_endpoints" {
-  description = "Map of dataflow endpoint resources by name."
-  value       = try(module.edge_messaging[0].dataflow_endpoints, {})
+output "messaging" {
+  description = "Cloud messaging resources."
+  value = {
+    event_grid_topic_endpoint = try(module.cloud_messaging.eventgrid.endpoint, "Not deployed")
+    event_grid_topic_name     = try(module.cloud_messaging.eventgrid.topic_name, "Not deployed")
+    eventhub_name             = try(module.cloud_messaging.eventhubs[0].eventhub_name, "Not deployed")
+    eventhub_namespace_name   = try(module.cloud_messaging.eventhubs[0].namespace_name, "Not deployed")
+  }
 }
 
 /*

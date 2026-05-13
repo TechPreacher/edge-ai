@@ -1,8 +1,8 @@
 ---
 title: Full Single Cluster Blueprint
-description: Complete end-to-end deployment of an Arc-enabled Kubernetes cluster with optional Azure IoT Operations on a single node, including all components from VM creation to cluster setup
+description: Complete end-to-end deployment of Azure IoT Operations on a single-node, Arc-enabled Kubernetes cluster with all components from VM creation to AIO installation
 author: Edge AI Team
-ms.date: 2026-02-17
+ms.date: 2025-06-07
 ms.topic: reference
 keywords:
   - azure iot operations
@@ -14,14 +14,12 @@ keywords:
   - edge computing
   - vm deployment
   - k3s cluster
-  - dataflow graphs
-  - schema registry
-estimated_reading_time: 5
+estimated_reading_time: 3
 ---
 
 ## Full Single Cluster Blueprint
 
-This blueprint provides a complete end-to-end deployment of an Arc-enabled Kubernetes cluster on a single node, with optional Azure IoT Operations (AIO). It deploys all necessary components from VM creation to cluster setup, resulting in a fully functional edge computing environment that integrates with Azure cloud services. Set `should_deploy_aio = false` to deploy an Arc-connected cluster without AIO.
+This blueprint provides a complete end-to-end deployment of Azure IoT Operations (AIO) on a single-node, Arc-enabled Kubernetes cluster. It deploys all necessary components from VM creation to AIO installation, resulting in a fully functional edge computing environment that integrates with Azure cloud services.
 Please follow general blueprint recommendations from blueprints [README.md](../README.md).
 
 ## Architecture
@@ -31,12 +29,10 @@ This blueprint deploys:
 1. A Linux VM host in Azure
 2. A K3s Kubernetes cluster on the VM
 3. Azure Arc connection for the cluster
-4. Cloud resources (Key Vault, Storage, Observability, Messaging, ACR)
-5. Azure IoT Operations components (optional, controlled by `should_deploy_aio`)
-6. Schema registry with versioned message schemas (when AIO is enabled)
-7. Optional messaging and observability components
-8. Optional dataflow graphs for WASM-based data processing pipelines (in Terraform only)
-9. Optional Preview Connectors for asset discovery (in Terraform only)
+4. Cloud resources required by AIO (Key Vault, Storage, etc.)
+5. Azure IoT Operations components (MQTT Broker, Data Processor, etc.)
+6. Optional messaging and observability components
+7. Optional Preview Connectors for asset discovery (in Terraform only)
 
 The resulting architecture provides a unified edge-to-cloud solution with secure communication, data processing capabilities, and comprehensive monitoring.
 
@@ -68,7 +64,7 @@ This blueprint consists of the following key components:
 | `cloud_data`              | Creates data storage resources          | `../../../src/000-cloud/030-data/terraform`              |
 | `cloud_messaging`         | Sets up messaging infrastructure        | `../../../src/000-cloud/040-messaging/terraform`         |
 | `cloud_vm_host`           | Creates the VM host for the cluster     | `../../../src/000-cloud/051-vm-host/terraform`           |
-| `cloud_acr`               | Azure Container Registry                | `../../../src/000-cloud/060-acr/terraform`               |
+| `cloud_aks_acr`           | Deploys AKS and/or ACR                  | `../../../src/000-cloud/060-aks-acr/terraform`           |
 | `edge_cncf_cluster`       | Deploys K3s Kubernetes cluster          | `../../../src/100-edge/100-cncf-cluster/terraform`       |
 | `edge_iot_ops`            | Installs Azure IoT Operations           | `../../../src/100-edge/110-iot-ops/terraform`            |
 | `edge_observability`      | Sets up edge monitoring                 | `../../../src/100-edge/120-observability/terraform`      |
@@ -87,13 +83,10 @@ Beyond the basic required variables, this blueprint supports advanced customizat
 | `instance`                                | Deployment instance number         | `"001"`  | For multiple deployments                                    |
 | `should_get_custom_locations_oid`         | Auto-retrieve Custom Locations OID | `true`   | Set to false when providing custom_locations_oid            |
 | `custom_locations_oid`                    | Custom Locations SP Object ID      | `null`   | Required for Arc custom locations                           |
-| `should_deploy_aio`                       | Deploy Azure IoT Operations        | `true`   | Set to false for Arc-only deployment without AIO            |
 | `should_create_anonymous_broker_listener` | Enable anonymous MQTT listener     | `false`  | For dev/test only, not secure for production                |
 | `should_create_aks`                       | Create Azure Kubernetes Service    | `false`  | When true, deploys AKS in addition to the K3s cluster       |
 | `should_create_acr_private_endpoint`      | Enable ACR private endpoint        | `false`  | Creates a private endpoint for the Azure Container Registry |
 | `aio_features`                            | AIO feature configurations         | `null`   | Map of feature settings for Azure IoT Operations            |
-| `schemas`                                 | Schema registry schemas            | Default  | List of schemas with versions for the schema registry       |
-| `dataflow_graphs`                         | Dataflow graph definitions         | `[]`     | List of dataflow graphs with nodes and connections          |
 
 For additional configuration options, review the variables in `variables.tf`.
 
@@ -159,95 +152,6 @@ Ensure you have the following prerequisites:
 - Appropriate permissions to create resources
 
 ## Advanced Configuration
-
-### Schema Registry Configuration in Terraform
-
-This blueprint deploys schemas into the Azure Device Registry schema registry through the `cloud_data` module. A default temperature schema is included, and you can customize or extend schemas via the `schemas` variable.
-
-Each schema supports:
-
-- Multiple named versions with independent content
-- Configurable format (defaults to `JsonSchema/draft-07`)
-- Display name and description metadata
-
-**Quick Example:**
-
-```hcl
-schemas = [
-  {
-    name         = "temperature-schema"
-    display_name = "Temperature Schema"
-    description  = "Schema for temperature sensor data"
-    format       = "JsonSchema/draft-07"
-    type         = "MessageSchema"
-    versions = {
-      "1" = {
-        description = "Initial version"
-        content     = "{\"$schema\":\"http://json-schema.org/draft-07/schema#\",\"type\":\"object\",\"properties\":{\"temperature\":{\"type\":\"number\"}}}"
-      }
-    }
-  }
-]
-```
-
-### Dataflow Graphs in Terraform
-
-This blueprint supports deploying dataflow graphs for WASM-based data processing pipelines through the `edge_messaging` module. Dataflow graphs define processing pipelines with source, graph (WASM operator), and destination nodes connected to route and transform data.
-
-**Key Benefits:**
-
-- Declarative configuration using Terraform variables
-- WASM-based graph operators from Azure Container Registry
-- Configurable node connections with optional schema references
-- Version control for pipeline definitions
-
-**Quick Example:**
-
-```hcl
-dataflow_graphs = [
-  {
-    name = "temperature-processing"
-    nodes = [
-      {
-        nodeType = "Source"
-        name     = "temperature-source"
-        sourceSettings = {
-          endpointRef = "default"
-          dataSources = ["raw"]
-        }
-      },
-      {
-        nodeType = "Graph"
-        name     = "temperature-map-custom"
-        graphSettings = {
-          registryEndpointRef = "acr-myprefix"
-          artifact            = "graph-simple-map-custom:1.0.0"
-        }
-      },
-      {
-        nodeType = "Destination"
-        name     = "temperature-destination"
-        destinationSettings = {
-          endpointRef     = "default"
-          dataDestination = "processed"
-        }
-      }
-    ]
-    node_connections = [
-      {
-        from = { name = "temperature-source" }
-        to   = { name = "temperature-map-custom" }
-      },
-      {
-        from = { name = "temperature-map-custom" }
-        to   = { name = "temperature-destination" }
-      }
-    ]
-  }
-]
-```
-
-See [dataflow-graphs.tfvars.example](terraform/dataflow-graphs.tfvars.example) for a complete configuration example.
 
 ### REST HTTP Connector Assets in Terraform
 

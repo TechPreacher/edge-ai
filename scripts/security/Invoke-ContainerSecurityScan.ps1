@@ -654,14 +654,9 @@ function Invoke-GrypeScan {
 
     Write-SecurityLog "Starting Grype vulnerability scan for: $FullImageName" -VerboseLogging:$VerboseLogging
 
-    # Generate report file names. Sanitize image/tag separators ('/', '\\', ':') so
-    # downstream Join-Path cannot create unintended subdirectories, and prefix the
-    # base name with 'grype-' to match the Get-GrypeScanResult reader contract in
-    # Invoke-SecurityGate.ps1 (issue #362).
+    # Generate report file names
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $safeImage = ($ImageName -replace '[\\/:]', '_').Trim('_')
-    $safeTag = ($ImageTag -replace '[\\/:]', '_').Trim('_')
-    $reportBaseName = "grype-${safeImage}-${safeTag}-${timestamp}"
+    $reportBaseName = "${ImageName}-${ImageTag}-${timestamp}"
     $sarifReport = Join-Path $OutputPath "${reportBaseName}.sarif"
     $jsonReport = Join-Path $OutputPath "${reportBaseName}.json"
     $tableReport = Join-Path $OutputPath "${reportBaseName}.txt"

@@ -56,16 +56,9 @@ changelog:
         - breaking-change
         - breaking
 
-    - title: 🔒 Vulnerabilities Fixed
-      labels:
-        - cve-fix
-
     - title: 🔐 Security
       labels:
         - security
-      exclude:
-        labels:
-          - cve-fix
 
     - title: Other Changes
       labels:

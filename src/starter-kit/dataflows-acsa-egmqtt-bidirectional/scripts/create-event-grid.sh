@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091
 source ./utils/common.sh
 
 echo "Checking if required environment variables are set and setting defaults if not"
