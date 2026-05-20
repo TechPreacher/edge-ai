@@ -228,7 +228,6 @@ impl UniversalImagePreprocessor {
     }
 
     /// Apply the configured resize strategy
-    #[allow(clippy::type_complexity)]
     fn apply_resize_strategy(
         &self,
         image: DynamicImage,

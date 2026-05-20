@@ -1,18 +1,3 @@
-# MobileNet ONNX Model Placeholder
-#
-# This is a placeholder file for the MobileNet v2 ONNX model.
-# The actual model file should be approximately 13.9MB.
-#
-# To use real models:
-# 1. Download MobileNet v2 ONNX model from ONNX Model Zoo
-# 2. Replace this file with the actual mobilenet.onnx
-# 3. Ensure the file is named exactly "mobilenet.onnx"
-#
-# Model specifications:
-# - Size: ~13.9MB
-# - Input: 1x3x224x224 (NCHW format)
-# - Output: 1x1000 (ImageNet classes)
-# - Framework: ONNX Runtime compatible
-#
-# For development and testing purposes, this placeholder allows
-# the Docker Compose configuration to build and run without errors.
+version https://git-lfs.github.com/spec/v1
+oid sha256:61959eab4f11b3fde6ac2c546271c81fa1fa349afd3bbf85bcd4c8055cdf4c1e
+size 638
